@@ -1,0 +1,74 @@
+{
+  "id": "tier0-first-ping.learn",
+  "tier": 0,
+  "mode": "learn",
+  "fidelity": "A",
+  "title": "First Contact",
+  "brief": "Two PCs and a switch are on the bench. Pick an address for each PC on 192.168.1.0/24 — any two host addresses that don't clash — and make them talk.",
+  "initialState": {
+    "devices": [
+      {
+        "id": "pc1",
+        "kind": "pc",
+        "label": "PC1",
+        "powered": true,
+        "x": 80,
+        "y": 180,
+        "interfaces": [{ "id": "e0", "name": "eth0", "ip": null, "mask": null, "linkId": "l1" }]
+      },
+      {
+        "id": "pc2",
+        "kind": "pc",
+        "label": "PC2",
+        "powered": true,
+        "x": 460,
+        "y": 180,
+        "interfaces": [{ "id": "e0", "name": "eth0", "ip": null, "mask": null, "linkId": "l2" }]
+      },
+      {
+        "id": "sw",
+        "kind": "switch",
+        "label": "Switch",
+        "powered": true,
+        "x": 270,
+        "y": 180,
+        "interfaces": [
+          { "id": "p1", "name": "port1", "linkId": "l1" },
+          { "id": "p2", "name": "port2", "linkId": "l2" }
+        ]
+      }
+    ],
+    "links": [
+      { "id": "l1", "a": { "deviceId": "pc1", "ifaceId": "e0" }, "b": { "deviceId": "sw", "ifaceId": "p1" } },
+      { "id": "l2", "a": { "deviceId": "pc2", "ifaceId": "e0" }, "b": { "deviceId": "sw", "ifaceId": "p2" } }
+    ]
+  },
+  "objectives": [
+    {
+      "id": "o1",
+      "description": "Give PC1 a host address of your choice on 192.168.1.0/24 (mask 255.255.255.0)",
+      "check": { "type": "ifaceInNetwork", "device": "pc1", "iface": "e0", "network": "192.168.1.0", "mask": "255.255.255.0" }
+    },
+    {
+      "id": "o2",
+      "description": "Give PC2 a different host address on the same network",
+      "check": { "type": "ifaceInNetwork", "device": "pc2", "iface": "e0", "network": "192.168.1.0", "mask": "255.255.255.0" }
+    },
+    {
+      "id": "o3",
+      "description": "PC1 can ping PC2",
+      "check": { "type": "canPing", "from": "pc1", "toDevice": "pc2" }
+    }
+  ],
+  "verify": { "from": "pc1", "toDevice": "pc2" },
+  "hints": [
+    { "level": 1, "text": "A switch just connects devices on the SAME network. Both PCs need addresses that start with 192.168.1 — which ones is up to you." },
+    { "level": 2, "text": "On 192.168.1.0/24 the usable host numbers run .1 to .254 (.0 names the network itself and .255 is the broadcast address). Pick any two different ones and give both PCs the mask 255.255.255.0." },
+    { "level": 3, "text": "Click PC1 -> set IP 192.168.1.10 / mask 255.255.255.0. Do the same for PC2 with a different last number, say 192.168.1.11. Then run: ping 192.168.1.11" }
+  ],
+  "botOpeners": [
+    "Welcome! Click a PC to open its config — it needs an IP address to speak.",
+    "Both PCs are on one switch, so they share one network. Keep the first three numbers the same and give each PC its own last number."
+  ],
+  "rewards": { "xp": 100, "badges": ["first-ping"], "unlocks": ["tier1-fix-mask.learn"] }
+}

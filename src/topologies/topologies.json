@@ -1,0 +1,2298 @@
+[
+  {
+    "id": "star",
+    "name": "Star",
+    "oneLine": "Every device connects to one central switch.",
+    "status": "current",
+    "statusLabel": "The standard almost everywhere today",
+    "whatItIs": "Every device gets its own cable running back to one central point — usually a switch. Nothing connects directly to anything else. If two computers want to talk, the switch passes the traffic between them.",
+    "howDataTravels": "A packet leaves the sender, goes to the switch, and the switch sends it straight out the one port where the destination lives. The switch learns which device is on which port, so it doesn't have to guess.",
+    "whereUsedToday": "This is what you're almost certainly sitting on right now. Offices, schools, universities, hospitals, and homes are built this way. A wall jack in a classroom runs back to a switch in a closet; that closet switch runs back to a bigger one. Wi-Fi doesn't change it — the access point on the ceiling is just another device plugged into the same star.",
+    "advantages": [
+      "One broken cable only takes down one device",
+      "Easy to find problems — you know which cable to check",
+      "Adding a device is just one more cable into a free port",
+      "Each device gets the full speed of its own link"
+    ],
+    "drawbacks": [
+      "If the central switch dies, everything connected to it goes down",
+      "You need a cable run for every single device",
+      "The switch has a fixed number of ports — run out and you need another switch"
+    ],
+    "goodToKnow": "Real buildings stack stars on top of each other: floor switches feed into a building switch, which feeds into the campus core. That layered version is called a tree, which is the next one on this list.",
+    "_sources": [
+      "HMS Networks industrial topology comparison",
+      "ITU Online networking fundamentals"
+    ],
+    "initialState": {
+      "devices": [
+        {
+          "id": "pc1",
+          "kind": "pc",
+          "label": "PC1",
+          "powered": true,
+          "x": 284,
+          "y": 70,
+          "interfaces": [
+            {
+              "id": "e0",
+              "name": "eth0",
+              "ip": "192.168.1.11",
+              "mask": "255.255.255.0",
+              "linkId": "l1"
+            }
+          ]
+        },
+        {
+          "id": "pc2",
+          "kind": "pc",
+          "label": "PC2",
+          "powered": true,
+          "x": 99,
+          "y": 265,
+          "interfaces": [
+            {
+              "id": "e0",
+              "name": "eth0",
+              "ip": "192.168.1.12",
+              "mask": "255.255.255.0",
+              "linkId": "l2"
+            }
+          ]
+        },
+        {
+          "id": "pc3",
+          "kind": "pc",
+          "label": "PC3",
+          "powered": true,
+          "x": 469,
+          "y": 265,
+          "interfaces": [
+            {
+              "id": "e0",
+              "name": "eth0",
+              "ip": "192.168.1.13",
+              "mask": "255.255.255.0",
+              "linkId": "l3"
+            }
+          ]
+        },
+        {
+          "id": "pc4",
+          "kind": "pc",
+          "label": "PC4",
+          "powered": true,
+          "x": 284,
+          "y": 460,
+          "interfaces": [
+            {
+              "id": "e0",
+              "name": "eth0",
+              "ip": "192.168.1.14",
+              "mask": "255.255.255.0",
+              "linkId": "l4"
+            }
+          ]
+        },
+        {
+          "id": "sw",
+          "kind": "switch",
+          "label": "Switch",
+          "powered": true,
+          "x": 284,
+          "y": 265,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "p1",
+              "ip": null,
+              "mask": null,
+              "linkId": "l1"
+            },
+            {
+              "id": "p2",
+              "name": "p2",
+              "ip": null,
+              "mask": null,
+              "linkId": "l2"
+            },
+            {
+              "id": "p3",
+              "name": "p3",
+              "ip": null,
+              "mask": null,
+              "linkId": "l3"
+            },
+            {
+              "id": "p4",
+              "name": "p4",
+              "ip": null,
+              "mask": null,
+              "linkId": "l4"
+            },
+            {
+              "id": "p5",
+              "name": "p5",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            },
+            {
+              "id": "p6",
+              "name": "p6",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        }
+      ],
+      "links": [
+        {
+          "id": "l1",
+          "a": {
+            "deviceId": "pc1",
+            "ifaceId": "e0"
+          },
+          "b": {
+            "deviceId": "sw",
+            "ifaceId": "p1"
+          }
+        },
+        {
+          "id": "l2",
+          "a": {
+            "deviceId": "pc2",
+            "ifaceId": "e0"
+          },
+          "b": {
+            "deviceId": "sw",
+            "ifaceId": "p2"
+          }
+        },
+        {
+          "id": "l3",
+          "a": {
+            "deviceId": "pc3",
+            "ifaceId": "e0"
+          },
+          "b": {
+            "deviceId": "sw",
+            "ifaceId": "p3"
+          }
+        },
+        {
+          "id": "l4",
+          "a": {
+            "deviceId": "pc4",
+            "ifaceId": "e0"
+          },
+          "b": {
+            "deviceId": "sw",
+            "ifaceId": "p4"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "bus",
+    "name": "Bus",
+    "oneLine": "All devices share one single cable.",
+    "status": "historical",
+    "statusLabel": "Obsolete — you will not build one, but you need to know why",
+    "whatItIs": "One long cable runs through the whole network, and every device taps into it. There's no switch in the middle at all. Each end of the cable needs a terminator — a small plug that stops the signal bouncing back and scrambling everything.",
+    "howDataTravels": "When a device sends, the signal travels the whole cable and every device hears it. Each one checks whether the packet is addressed to it, and ignores it if not. Because everyone shares the same wire, only one device can talk at a time — if two send at once, the signals collide and both have to wait a random moment and try again.",
+    "whereUsedToday": "Essentially nowhere. Bus networks belonged to the coaxial-cable era of the 1980s and early 1990s. Modern Ethernet over twisted pair killed it off, and switches removed the shared-wire problem entirely. You might still hear about it in a course, in old building documentation, or in some industrial control systems that predate Ethernet.",
+    "advantages": [
+      "Cheap — one cable, no switch to buy",
+      "Simple to lay out in a straight line"
+    ],
+    "drawbacks": [
+      "A single break anywhere kills the entire network",
+      "Only one device can transmit at a time, so it gets slower as you add devices",
+      "Finding the fault means checking the whole cable run",
+      "Every device hears every packet, which is bad for both speed and privacy"
+    ],
+    "goodToKnow": "Bus is worth learning because it explains why switches exist. Every problem a switch solves — collisions, shared bandwidth, one break taking everything down — is a bus problem.",
+    "_sources": [
+      "ITU Online networking fundamentals",
+      "Docusnap IT documentation"
+    ],
+    "initialState": {
+      "devices": [
+        {
+          "id": "pc1",
+          "kind": "pc",
+          "label": "PC1",
+          "powered": true,
+          "x": 15,
+          "y": 100,
+          "interfaces": [
+            {
+              "id": "e0",
+              "name": "eth0",
+              "ip": "192.168.1.11",
+              "mask": "255.255.255.0",
+              "linkId": "d1"
+            }
+          ]
+        },
+        {
+          "id": "pc2",
+          "kind": "pc",
+          "label": "PC2",
+          "powered": true,
+          "x": 190,
+          "y": 100,
+          "interfaces": [
+            {
+              "id": "e0",
+              "name": "eth0",
+              "ip": "192.168.1.12",
+              "mask": "255.255.255.0",
+              "linkId": "d2"
+            }
+          ]
+        },
+        {
+          "id": "pc3",
+          "kind": "pc",
+          "label": "PC3",
+          "powered": true,
+          "x": 365,
+          "y": 100,
+          "interfaces": [
+            {
+              "id": "e0",
+              "name": "eth0",
+              "ip": "192.168.1.13",
+              "mask": "255.255.255.0",
+              "linkId": "d3"
+            }
+          ]
+        },
+        {
+          "id": "pc4",
+          "kind": "pc",
+          "label": "PC4",
+          "powered": true,
+          "x": 540,
+          "y": 100,
+          "interfaces": [
+            {
+              "id": "e0",
+              "name": "eth0",
+              "ip": "192.168.1.14",
+              "mask": "255.255.255.0",
+              "linkId": "d4"
+            }
+          ]
+        },
+        {
+          "id": "tap1",
+          "kind": "hub",
+          "label": "Tap 1",
+          "powered": true,
+          "x": 15,
+          "y": 300,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "in",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            },
+            {
+              "id": "p2",
+              "name": "drop",
+              "ip": null,
+              "mask": null,
+              "linkId": "d1"
+            },
+            {
+              "id": "p3",
+              "name": "out",
+              "ip": null,
+              "mask": null,
+              "linkId": "s1"
+            }
+          ]
+        },
+        {
+          "id": "tap2",
+          "kind": "hub",
+          "label": "Tap 2",
+          "powered": true,
+          "x": 190,
+          "y": 300,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "in",
+              "ip": null,
+              "mask": null,
+              "linkId": "s1"
+            },
+            {
+              "id": "p2",
+              "name": "drop",
+              "ip": null,
+              "mask": null,
+              "linkId": "d2"
+            },
+            {
+              "id": "p3",
+              "name": "out",
+              "ip": null,
+              "mask": null,
+              "linkId": "s2"
+            }
+          ]
+        },
+        {
+          "id": "tap3",
+          "kind": "hub",
+          "label": "Tap 3",
+          "powered": true,
+          "x": 365,
+          "y": 300,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "in",
+              "ip": null,
+              "mask": null,
+              "linkId": "s2"
+            },
+            {
+              "id": "p2",
+              "name": "drop",
+              "ip": null,
+              "mask": null,
+              "linkId": "d3"
+            },
+            {
+              "id": "p3",
+              "name": "out",
+              "ip": null,
+              "mask": null,
+              "linkId": "s3"
+            }
+          ]
+        },
+        {
+          "id": "tap4",
+          "kind": "hub",
+          "label": "Tap 4",
+          "powered": true,
+          "x": 540,
+          "y": 300,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "in",
+              "ip": null,
+              "mask": null,
+              "linkId": "s3"
+            },
+            {
+              "id": "p2",
+              "name": "drop",
+              "ip": null,
+              "mask": null,
+              "linkId": "d4"
+            },
+            {
+              "id": "p3",
+              "name": "out",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        }
+      ],
+      "links": [
+        {
+          "id": "d1",
+          "a": {
+            "deviceId": "pc1",
+            "ifaceId": "e0"
+          },
+          "b": {
+            "deviceId": "tap1",
+            "ifaceId": "p2"
+          }
+        },
+        {
+          "id": "d2",
+          "a": {
+            "deviceId": "pc2",
+            "ifaceId": "e0"
+          },
+          "b": {
+            "deviceId": "tap2",
+            "ifaceId": "p2"
+          }
+        },
+        {
+          "id": "d3",
+          "a": {
+            "deviceId": "pc3",
+            "ifaceId": "e0"
+          },
+          "b": {
+            "deviceId": "tap3",
+            "ifaceId": "p2"
+          }
+        },
+        {
+          "id": "d4",
+          "a": {
+            "deviceId": "pc4",
+            "ifaceId": "e0"
+          },
+          "b": {
+            "deviceId": "tap4",
+            "ifaceId": "p2"
+          }
+        },
+        {
+          "id": "s1",
+          "a": {
+            "deviceId": "tap1",
+            "ifaceId": "p3"
+          },
+          "b": {
+            "deviceId": "tap2",
+            "ifaceId": "p1"
+          }
+        },
+        {
+          "id": "s2",
+          "a": {
+            "deviceId": "tap2",
+            "ifaceId": "p3"
+          },
+          "b": {
+            "deviceId": "tap3",
+            "ifaceId": "p1"
+          }
+        },
+        {
+          "id": "s3",
+          "a": {
+            "deviceId": "tap3",
+            "ifaceId": "p3"
+          },
+          "b": {
+            "deviceId": "tap4",
+            "ifaceId": "p1"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "ring",
+    "name": "Ring",
+    "oneLine": "Each device connects to two neighbours, forming a closed loop.",
+    "status": "specialized",
+    "statusLabel": "Gone from offices, alive in fiber and factories",
+    "whatItIs": "Every device connects to exactly two others, and the last one connects back to the first, closing the circle. There's no central point — the loop itself is the network.",
+    "howDataTravels": "Data passes from neighbour to neighbour around the circle until it reaches the destination. The important part is what happens when a link breaks: because it's a loop, there are two ways round. If one direction fails, traffic reverses and goes the other way. That self-healing is the whole reason ring survives.",
+    "whereUsedToday": "You won't find a ring in an office, but they're common in three places. Metro fiber networks run city-wide rings so a cut fiber doesn't take a neighbourhood offline — the standard for this is called ERPS (G.8032). Factories, utilities, and transport systems use industrial Ethernet rings because they recover from a break in well under a second, which matters when machines are running. And some large campuses ring their buildings together for the same reason.",
+    "advantages": [
+      "Survives a single break — traffic just goes the other way",
+      "Recovery is very fast, often under 300 milliseconds",
+      "No central device to fail",
+      "Predictable, even traffic flow with no single device getting priority"
+    ],
+    "drawbacks": [
+      "All traffic shares the ring, so total bandwidth is limited",
+      "Two breaks in different places will split the network",
+      "Needs managed switches that support ring protocols — more expensive",
+      "Harder to troubleshoot if nobody documented the loop"
+    ],
+    "goodToKnow": "Token Ring, the 1980s office technology, is completely dead. Modern rings are fiber and Ethernet-based and use protocols like ERPS or Cisco's REP. Same shape, entirely different technology.",
+    "_sources": [
+      "CloudMyLab ring topology guide (2026)",
+      "HMS Networks industrial Ethernet",
+      "Omnitron fiber ring (2026)"
+    ],
+    "initialState": {
+      "devices": [
+        {
+          "id": "pc1",
+          "kind": "pc",
+          "label": "PC1",
+          "powered": true,
+          "x": 15,
+          "y": 100,
+          "interfaces": [
+            {
+              "id": "e0",
+              "name": "eth0",
+              "ip": "192.168.1.11",
+              "mask": "255.255.255.0",
+              "linkId": "d1"
+            }
+          ]
+        },
+        {
+          "id": "pc2",
+          "kind": "pc",
+          "label": "PC2",
+          "powered": true,
+          "x": 550,
+          "y": 100,
+          "interfaces": [
+            {
+              "id": "e0",
+              "name": "eth0",
+              "ip": "192.168.1.12",
+              "mask": "255.255.255.0",
+              "linkId": "d2"
+            }
+          ]
+        },
+        {
+          "id": "pc3",
+          "kind": "pc",
+          "label": "PC3",
+          "powered": true,
+          "x": 550,
+          "y": 300,
+          "interfaces": [
+            {
+              "id": "e0",
+              "name": "eth0",
+              "ip": "192.168.1.13",
+              "mask": "255.255.255.0",
+              "linkId": "d3"
+            }
+          ]
+        },
+        {
+          "id": "pc4",
+          "kind": "pc",
+          "label": "PC4",
+          "powered": true,
+          "x": 15,
+          "y": 300,
+          "interfaces": [
+            {
+              "id": "e0",
+              "name": "eth0",
+              "ip": "192.168.1.14",
+              "mask": "255.255.255.0",
+              "linkId": "d4"
+            }
+          ]
+        },
+        {
+          "id": "swa",
+          "kind": "switch",
+          "label": "Ring-A",
+          "powered": true,
+          "x": 195,
+          "y": 100,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "p1",
+              "ip": null,
+              "mask": null,
+              "linkId": "r4"
+            },
+            {
+              "id": "p2",
+              "name": "p2",
+              "ip": null,
+              "mask": null,
+              "linkId": "r1"
+            },
+            {
+              "id": "p3",
+              "name": "p3",
+              "ip": null,
+              "mask": null,
+              "linkId": "d1"
+            },
+            {
+              "id": "p4",
+              "name": "p4",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        },
+        {
+          "id": "swb",
+          "kind": "switch",
+          "label": "Ring-B",
+          "powered": true,
+          "x": 370,
+          "y": 100,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "p1",
+              "ip": null,
+              "mask": null,
+              "linkId": "r1"
+            },
+            {
+              "id": "p2",
+              "name": "p2",
+              "ip": null,
+              "mask": null,
+              "linkId": "r2"
+            },
+            {
+              "id": "p3",
+              "name": "p3",
+              "ip": null,
+              "mask": null,
+              "linkId": "d2"
+            },
+            {
+              "id": "p4",
+              "name": "p4",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        },
+        {
+          "id": "swc",
+          "kind": "switch",
+          "label": "Ring-C",
+          "powered": true,
+          "x": 370,
+          "y": 300,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "p1",
+              "ip": null,
+              "mask": null,
+              "linkId": "r2"
+            },
+            {
+              "id": "p2",
+              "name": "p2",
+              "ip": null,
+              "mask": null,
+              "linkId": "r3"
+            },
+            {
+              "id": "p3",
+              "name": "p3",
+              "ip": null,
+              "mask": null,
+              "linkId": "d3"
+            },
+            {
+              "id": "p4",
+              "name": "p4",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        },
+        {
+          "id": "swd",
+          "kind": "switch",
+          "label": "Ring-D",
+          "powered": true,
+          "x": 195,
+          "y": 300,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "p1",
+              "ip": null,
+              "mask": null,
+              "linkId": "r3"
+            },
+            {
+              "id": "p2",
+              "name": "p2",
+              "ip": null,
+              "mask": null,
+              "linkId": "r4"
+            },
+            {
+              "id": "p3",
+              "name": "p3",
+              "ip": null,
+              "mask": null,
+              "linkId": "d4"
+            },
+            {
+              "id": "p4",
+              "name": "p4",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        }
+      ],
+      "links": [
+        {
+          "id": "r1",
+          "a": {
+            "deviceId": "swa",
+            "ifaceId": "p2"
+          },
+          "b": {
+            "deviceId": "swb",
+            "ifaceId": "p1"
+          }
+        },
+        {
+          "id": "r2",
+          "a": {
+            "deviceId": "swb",
+            "ifaceId": "p2"
+          },
+          "b": {
+            "deviceId": "swc",
+            "ifaceId": "p1"
+          }
+        },
+        {
+          "id": "r3",
+          "a": {
+            "deviceId": "swc",
+            "ifaceId": "p2"
+          },
+          "b": {
+            "deviceId": "swd",
+            "ifaceId": "p1"
+          }
+        },
+        {
+          "id": "r4",
+          "a": {
+            "deviceId": "swd",
+            "ifaceId": "p2"
+          },
+          "b": {
+            "deviceId": "swa",
+            "ifaceId": "p1"
+          }
+        },
+        {
+          "id": "d1",
+          "a": {
+            "deviceId": "pc1",
+            "ifaceId": "e0"
+          },
+          "b": {
+            "deviceId": "swa",
+            "ifaceId": "p3"
+          }
+        },
+        {
+          "id": "d2",
+          "a": {
+            "deviceId": "pc2",
+            "ifaceId": "e0"
+          },
+          "b": {
+            "deviceId": "swb",
+            "ifaceId": "p3"
+          }
+        },
+        {
+          "id": "d3",
+          "a": {
+            "deviceId": "pc3",
+            "ifaceId": "e0"
+          },
+          "b": {
+            "deviceId": "swc",
+            "ifaceId": "p3"
+          }
+        },
+        {
+          "id": "d4",
+          "a": {
+            "deviceId": "pc4",
+            "ifaceId": "e0"
+          },
+          "b": {
+            "deviceId": "swd",
+            "ifaceId": "p3"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "full-mesh",
+    "name": "Full Mesh",
+    "oneLine": "Every device connects directly to every other device.",
+    "status": "specialized",
+    "statusLabel": "Rare by itself — but the heart of every modern data center",
+    "whatItIs": "Every device has a direct link to every other device. Nothing has to pass through a middleman. With four devices that's six cables; with six devices it's fifteen. The formula is n × (n − 1) ÷ 2, and it grows fast.",
+    "howDataTravels": "Straight there. Every destination is one hop away, and if a link fails there are still plenty of other paths.",
+    "whereUsedToday": "Almost never as a whole network — the cable count makes it impractical. But it shows up as a layer inside bigger designs, and that's where it matters. Modern data centers use a design called spine-leaf, where every leaf switch connects to every spine switch — a full mesh at that one layer. That's the default data center fabric in 2026. It's also used between a handful of critical core routers, and in SD-WAN where sites connect over virtual tunnels rather than physical cable.",
+    "advantages": [
+      "Fastest possible path — everything is one hop away",
+      "Extremely resilient; many links can fail and it still works",
+      "No central device that everything depends on",
+      "Traffic spreads across all links instead of queueing on one"
+    ],
+    "drawbacks": [
+      "Cable and port count explodes as you add devices",
+      "Expensive — every device needs many ports",
+      "Complicated to configure and document",
+      "Overkill for most networks"
+    ],
+    "goodToKnow": "In SD-WAN, where links are software tunnels instead of cables, full mesh is the default — but it still hits the same wall. A hundred branch offices in full mesh means 4,950 tunnels, which small branch routers cannot handle. That's exactly why partial mesh exists.",
+    "_sources": [
+      "HPE spine-leaf glossary (2026)",
+      "network-switch.com 2026 spine-leaf guide",
+      "NetworkAcademy.IO SD-WAN"
+    ],
+    "initialState": {
+      "devices": [
+        {
+          "id": "pc1",
+          "kind": "pc",
+          "label": "PC1",
+          "powered": true,
+          "x": 15,
+          "y": 100,
+          "interfaces": [
+            {
+              "id": "e0",
+              "name": "eth0",
+              "ip": "192.168.1.11",
+              "mask": "255.255.255.0",
+              "linkId": "d1"
+            }
+          ]
+        },
+        {
+          "id": "pc2",
+          "kind": "pc",
+          "label": "PC2",
+          "powered": true,
+          "x": 550,
+          "y": 300,
+          "interfaces": [
+            {
+              "id": "e0",
+              "name": "eth0",
+              "ip": "192.168.1.12",
+              "mask": "255.255.255.0",
+              "linkId": "d2"
+            }
+          ]
+        },
+        {
+          "id": "fm1",
+          "kind": "switch",
+          "label": "Mesh-1",
+          "powered": true,
+          "x": 195,
+          "y": 100,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "p1",
+              "ip": null,
+              "mask": null,
+              "linkId": "m12"
+            },
+            {
+              "id": "p2",
+              "name": "p2",
+              "ip": null,
+              "mask": null,
+              "linkId": "m41"
+            },
+            {
+              "id": "p3",
+              "name": "p3",
+              "ip": null,
+              "mask": null,
+              "linkId": "m13"
+            },
+            {
+              "id": "p4",
+              "name": "p4",
+              "ip": null,
+              "mask": null,
+              "linkId": "d1"
+            },
+            {
+              "id": "p5",
+              "name": "p5",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        },
+        {
+          "id": "fm2",
+          "kind": "switch",
+          "label": "Mesh-2",
+          "powered": true,
+          "x": 370,
+          "y": 100,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "p1",
+              "ip": null,
+              "mask": null,
+              "linkId": "m12"
+            },
+            {
+              "id": "p2",
+              "name": "p2",
+              "ip": null,
+              "mask": null,
+              "linkId": "m23"
+            },
+            {
+              "id": "p3",
+              "name": "p3",
+              "ip": null,
+              "mask": null,
+              "linkId": "m24"
+            },
+            {
+              "id": "p4",
+              "name": "p4",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            },
+            {
+              "id": "p5",
+              "name": "p5",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        },
+        {
+          "id": "fm3",
+          "kind": "switch",
+          "label": "Mesh-3",
+          "powered": true,
+          "x": 370,
+          "y": 300,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "p1",
+              "ip": null,
+              "mask": null,
+              "linkId": "m13"
+            },
+            {
+              "id": "p2",
+              "name": "p2",
+              "ip": null,
+              "mask": null,
+              "linkId": "m23"
+            },
+            {
+              "id": "p3",
+              "name": "p3",
+              "ip": null,
+              "mask": null,
+              "linkId": "m34"
+            },
+            {
+              "id": "p4",
+              "name": "p4",
+              "ip": null,
+              "mask": null,
+              "linkId": "d2"
+            },
+            {
+              "id": "p5",
+              "name": "p5",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        },
+        {
+          "id": "fm4",
+          "kind": "switch",
+          "label": "Mesh-4",
+          "powered": true,
+          "x": 195,
+          "y": 300,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "p1",
+              "ip": null,
+              "mask": null,
+              "linkId": "m41"
+            },
+            {
+              "id": "p2",
+              "name": "p2",
+              "ip": null,
+              "mask": null,
+              "linkId": "m24"
+            },
+            {
+              "id": "p3",
+              "name": "p3",
+              "ip": null,
+              "mask": null,
+              "linkId": "m34"
+            },
+            {
+              "id": "p4",
+              "name": "p4",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            },
+            {
+              "id": "p5",
+              "name": "p5",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        }
+      ],
+      "links": [
+        {
+          "id": "m12",
+          "a": {
+            "deviceId": "fm1",
+            "ifaceId": "p1"
+          },
+          "b": {
+            "deviceId": "fm2",
+            "ifaceId": "p1"
+          }
+        },
+        {
+          "id": "m23",
+          "a": {
+            "deviceId": "fm2",
+            "ifaceId": "p2"
+          },
+          "b": {
+            "deviceId": "fm3",
+            "ifaceId": "p2"
+          }
+        },
+        {
+          "id": "m34",
+          "a": {
+            "deviceId": "fm3",
+            "ifaceId": "p3"
+          },
+          "b": {
+            "deviceId": "fm4",
+            "ifaceId": "p3"
+          }
+        },
+        {
+          "id": "m41",
+          "a": {
+            "deviceId": "fm4",
+            "ifaceId": "p1"
+          },
+          "b": {
+            "deviceId": "fm1",
+            "ifaceId": "p2"
+          }
+        },
+        {
+          "id": "m13",
+          "a": {
+            "deviceId": "fm1",
+            "ifaceId": "p3"
+          },
+          "b": {
+            "deviceId": "fm3",
+            "ifaceId": "p1"
+          }
+        },
+        {
+          "id": "m24",
+          "a": {
+            "deviceId": "fm2",
+            "ifaceId": "p3"
+          },
+          "b": {
+            "deviceId": "fm4",
+            "ifaceId": "p2"
+          }
+        },
+        {
+          "id": "d1",
+          "a": {
+            "deviceId": "pc1",
+            "ifaceId": "e0"
+          },
+          "b": {
+            "deviceId": "fm1",
+            "ifaceId": "p4"
+          }
+        },
+        {
+          "id": "d2",
+          "a": {
+            "deviceId": "pc2",
+            "ifaceId": "e0"
+          },
+          "b": {
+            "deviceId": "fm3",
+            "ifaceId": "p4"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "partial-mesh",
+    "name": "Partial Mesh",
+    "oneLine": "Important devices get extra direct links; the rest connect through them.",
+    "status": "current",
+    "statusLabel": "What real large networks actually use",
+    "whatItIs": "A middle ground. Some devices — usually the busiest or most important ones — get direct links to several others. The rest connect through those. You decide where the extra links are worth the cost instead of wiring everything to everything.",
+    "howDataTravels": "Traffic between two well-connected devices goes direct. Traffic from a smaller site hops through a bigger one on the way. Because key devices have more than one link, losing a single connection usually means traffic just takes a different route.",
+    "whereUsedToday": "This is the normal shape for any network big enough to span multiple locations. Companies with many branch offices connect each branch to two regional hubs rather than to every other branch. Internet service providers build this way. Cloud regions connect this way. If you look at a diagram of a real corporate WAN, you're looking at partial mesh.",
+    "advantages": [
+      "Redundancy where it matters, without paying for it everywhere",
+      "Far cheaper and simpler than full mesh",
+      "Scales to hundreds of sites",
+      "You choose which paths get protected"
+    ],
+    "drawbacks": [
+      "Not every path is redundant — some devices still have a single link",
+      "Takes real planning to decide where the extra links go",
+      "Traffic between two edge devices may take several hops"
+    ],
+    "goodToKnow": "Many organizations arrive here by accident. They start with everything routed through one central hub, find it too slow for site-to-site traffic, and add direct links between the busiest pairs. That's partial mesh, built one decision at a time.",
+    "_sources": [
+      "ZPE Systems SD-WAN deployment models",
+      "Cisco SD-WAN documentation",
+      "Cisco Community regional hub discussion"
+    ],
+    "initialState": {
+      "devices": [
+        {
+          "id": "pc1",
+          "kind": "pc",
+          "label": "PC1",
+          "powered": true,
+          "x": 20,
+          "y": 490,
+          "interfaces": [
+            {
+              "id": "e0",
+              "name": "eth0",
+              "ip": "192.168.1.11",
+              "mask": "255.255.255.0",
+              "linkId": "d1"
+            }
+          ]
+        },
+        {
+          "id": "pc2",
+          "kind": "pc",
+          "label": "PC2",
+          "powered": true,
+          "x": 245,
+          "y": 490,
+          "interfaces": [
+            {
+              "id": "e0",
+              "name": "eth0",
+              "ip": "192.168.1.12",
+              "mask": "255.255.255.0",
+              "linkId": "d2"
+            }
+          ]
+        },
+        {
+          "id": "pc3",
+          "kind": "pc",
+          "label": "PC3",
+          "powered": true,
+          "x": 470,
+          "y": 490,
+          "interfaces": [
+            {
+              "id": "e0",
+              "name": "eth0",
+              "ip": "192.168.1.13",
+              "mask": "255.255.255.0",
+              "linkId": "d3"
+            }
+          ]
+        },
+        {
+          "id": "rega",
+          "kind": "switch",
+          "label": "Region-A",
+          "powered": true,
+          "x": 150,
+          "y": 70,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "p1",
+              "ip": null,
+              "mask": null,
+              "linkId": "core"
+            },
+            {
+              "id": "p2",
+              "name": "p2",
+              "ip": null,
+              "mask": null,
+              "linkId": "u11"
+            },
+            {
+              "id": "p3",
+              "name": "p3",
+              "ip": null,
+              "mask": null,
+              "linkId": "u21"
+            },
+            {
+              "id": "p4",
+              "name": "p4",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            },
+            {
+              "id": "p5",
+              "name": "p5",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        },
+        {
+          "id": "regb",
+          "kind": "switch",
+          "label": "Region-B",
+          "powered": true,
+          "x": 400,
+          "y": 70,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "p1",
+              "ip": null,
+              "mask": null,
+              "linkId": "core"
+            },
+            {
+              "id": "p2",
+              "name": "p2",
+              "ip": null,
+              "mask": null,
+              "linkId": "u12"
+            },
+            {
+              "id": "p3",
+              "name": "p3",
+              "ip": null,
+              "mask": null,
+              "linkId": "u22"
+            },
+            {
+              "id": "p4",
+              "name": "p4",
+              "ip": null,
+              "mask": null,
+              "linkId": "u31"
+            },
+            {
+              "id": "p5",
+              "name": "p5",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        },
+        {
+          "id": "br1",
+          "kind": "switch",
+          "label": "Branch-1",
+          "powered": true,
+          "x": 20,
+          "y": 290,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "p1",
+              "ip": null,
+              "mask": null,
+              "linkId": "u11"
+            },
+            {
+              "id": "p2",
+              "name": "p2",
+              "ip": null,
+              "mask": null,
+              "linkId": "u12"
+            },
+            {
+              "id": "p3",
+              "name": "p3",
+              "ip": null,
+              "mask": null,
+              "linkId": "d1"
+            },
+            {
+              "id": "p4",
+              "name": "p4",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        },
+        {
+          "id": "br2",
+          "kind": "switch",
+          "label": "Branch-2",
+          "powered": true,
+          "x": 245,
+          "y": 290,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "p1",
+              "ip": null,
+              "mask": null,
+              "linkId": "u21"
+            },
+            {
+              "id": "p2",
+              "name": "p2",
+              "ip": null,
+              "mask": null,
+              "linkId": "u22"
+            },
+            {
+              "id": "p3",
+              "name": "p3",
+              "ip": null,
+              "mask": null,
+              "linkId": "d2"
+            },
+            {
+              "id": "p4",
+              "name": "p4",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        },
+        {
+          "id": "br3",
+          "kind": "switch",
+          "label": "Branch-3",
+          "powered": true,
+          "x": 470,
+          "y": 290,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "p1",
+              "ip": null,
+              "mask": null,
+              "linkId": "u31"
+            },
+            {
+              "id": "p2",
+              "name": "p2",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            },
+            {
+              "id": "p3",
+              "name": "p3",
+              "ip": null,
+              "mask": null,
+              "linkId": "d3"
+            },
+            {
+              "id": "p4",
+              "name": "p4",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        }
+      ],
+      "links": [
+        {
+          "id": "core",
+          "a": {
+            "deviceId": "rega",
+            "ifaceId": "p1"
+          },
+          "b": {
+            "deviceId": "regb",
+            "ifaceId": "p1"
+          }
+        },
+        {
+          "id": "u11",
+          "a": {
+            "deviceId": "br1",
+            "ifaceId": "p1"
+          },
+          "b": {
+            "deviceId": "rega",
+            "ifaceId": "p2"
+          }
+        },
+        {
+          "id": "u12",
+          "a": {
+            "deviceId": "br1",
+            "ifaceId": "p2"
+          },
+          "b": {
+            "deviceId": "regb",
+            "ifaceId": "p2"
+          }
+        },
+        {
+          "id": "u21",
+          "a": {
+            "deviceId": "br2",
+            "ifaceId": "p1"
+          },
+          "b": {
+            "deviceId": "rega",
+            "ifaceId": "p3"
+          }
+        },
+        {
+          "id": "u22",
+          "a": {
+            "deviceId": "br2",
+            "ifaceId": "p2"
+          },
+          "b": {
+            "deviceId": "regb",
+            "ifaceId": "p3"
+          }
+        },
+        {
+          "id": "u31",
+          "a": {
+            "deviceId": "br3",
+            "ifaceId": "p1"
+          },
+          "b": {
+            "deviceId": "regb",
+            "ifaceId": "p4"
+          }
+        },
+        {
+          "id": "d1",
+          "a": {
+            "deviceId": "pc1",
+            "ifaceId": "e0"
+          },
+          "b": {
+            "deviceId": "br1",
+            "ifaceId": "p3"
+          }
+        },
+        {
+          "id": "d2",
+          "a": {
+            "deviceId": "pc2",
+            "ifaceId": "e0"
+          },
+          "b": {
+            "deviceId": "br2",
+            "ifaceId": "p3"
+          }
+        },
+        {
+          "id": "d3",
+          "a": {
+            "deviceId": "pc3",
+            "ifaceId": "e0"
+          },
+          "b": {
+            "deviceId": "br3",
+            "ifaceId": "p3"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "tree",
+    "name": "Tree",
+    "oneLine": "Stars stacked in layers, branching down from a core.",
+    "status": "current",
+    "statusLabel": "How every campus and large building is wired",
+    "whatItIs": "Take several star networks and connect their central switches up to a bigger switch. Do that again and you have a tree: a core at the top, distribution switches in the middle, and access switches at the bottom with the actual devices plugged into them. It's also called a hierarchical or three-tier design.",
+    "howDataTravels": "Traffic between two computers on the same access switch never leaves it. Traffic to another floor goes up to the distribution layer and back down. Traffic to another building goes all the way up to the core and back down. The higher you go, the more traffic the link carries — so upper links are built faster.",
+    "whereUsedToday": "This is the standard for campus networks: universities, hospitals, large offices, school districts. A wiring closet on each floor, a distribution switch per building, a core tying the buildings together. It's the design most networking certifications teach because it's what you'll walk into on the job.",
+    "advantages": [
+      "Scales cleanly — add another branch without redesigning anything",
+      "Problems stay contained to one branch",
+      "Matches how buildings are physically laid out",
+      "Easy to reason about and document"
+    ],
+    "drawbacks": [
+      "A failure high up in the tree takes out everything below it",
+      "Upper-layer links can become bottlenecks",
+      "Traffic between two distant devices travels a long way up and back down"
+    ],
+    "goodToKnow": "Data centers used to be built this way too, but they've moved to spine-leaf. The reason is traffic direction: trees are good when traffic goes up and out to the internet, but data center servers mostly talk to each other sideways, and a tree makes that slow.",
+    "_sources": [
+      "The Network DNA leaf-spine (2026)",
+      "Intelligent Visibility spine-leaf vs three-tier"
+    ],
+    "initialState": {
+      "devices": [
+        {
+          "id": "core",
+          "kind": "switch",
+          "label": "Core",
+          "powered": true,
+          "x": 280,
+          "y": 60,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "p1",
+              "ip": null,
+              "mask": null,
+              "linkId": "t1"
+            },
+            {
+              "id": "p2",
+              "name": "p2",
+              "ip": null,
+              "mask": null,
+              "linkId": "t2"
+            },
+            {
+              "id": "p3",
+              "name": "p3",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            },
+            {
+              "id": "p4",
+              "name": "p4",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        },
+        {
+          "id": "dist1",
+          "kind": "switch",
+          "label": "Dist-1",
+          "powered": true,
+          "x": 140,
+          "y": 275,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "p1",
+              "ip": null,
+              "mask": null,
+              "linkId": "t1"
+            },
+            {
+              "id": "p2",
+              "name": "p2",
+              "ip": null,
+              "mask": null,
+              "linkId": "b1"
+            },
+            {
+              "id": "p3",
+              "name": "p3",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            },
+            {
+              "id": "p4",
+              "name": "p4",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        },
+        {
+          "id": "dist2",
+          "kind": "switch",
+          "label": "Dist-2",
+          "powered": true,
+          "x": 420,
+          "y": 275,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "p1",
+              "ip": null,
+              "mask": null,
+              "linkId": "t2"
+            },
+            {
+              "id": "p2",
+              "name": "p2",
+              "ip": null,
+              "mask": null,
+              "linkId": "b2"
+            },
+            {
+              "id": "p3",
+              "name": "p3",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            },
+            {
+              "id": "p4",
+              "name": "p4",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        },
+        {
+          "id": "acc1",
+          "kind": "switch",
+          "label": "Access-1",
+          "powered": true,
+          "x": 180,
+          "y": 490,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "p1",
+              "ip": null,
+              "mask": null,
+              "linkId": "b1"
+            },
+            {
+              "id": "p2",
+              "name": "p2",
+              "ip": null,
+              "mask": null,
+              "linkId": "d1"
+            },
+            {
+              "id": "p3",
+              "name": "p3",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            },
+            {
+              "id": "p4",
+              "name": "p4",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        },
+        {
+          "id": "acc2",
+          "kind": "switch",
+          "label": "Access-2",
+          "powered": true,
+          "x": 380,
+          "y": 490,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "p1",
+              "ip": null,
+              "mask": null,
+              "linkId": "b2"
+            },
+            {
+              "id": "p2",
+              "name": "p2",
+              "ip": null,
+              "mask": null,
+              "linkId": "d2"
+            },
+            {
+              "id": "p3",
+              "name": "p3",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            },
+            {
+              "id": "p4",
+              "name": "p4",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        },
+        {
+          "id": "pc1",
+          "kind": "pc",
+          "label": "PC1",
+          "powered": true,
+          "x": 0,
+          "y": 490,
+          "interfaces": [
+            {
+              "id": "e0",
+              "name": "eth0",
+              "ip": "192.168.1.11",
+              "mask": "255.255.255.0",
+              "linkId": "d1"
+            }
+          ]
+        },
+        {
+          "id": "pc2",
+          "kind": "pc",
+          "label": "PC2",
+          "powered": true,
+          "x": 560,
+          "y": 490,
+          "interfaces": [
+            {
+              "id": "e0",
+              "name": "eth0",
+              "ip": "192.168.1.12",
+              "mask": "255.255.255.0",
+              "linkId": "d2"
+            }
+          ]
+        }
+      ],
+      "links": [
+        {
+          "id": "t1",
+          "a": {
+            "deviceId": "core",
+            "ifaceId": "p1"
+          },
+          "b": {
+            "deviceId": "dist1",
+            "ifaceId": "p1"
+          }
+        },
+        {
+          "id": "t2",
+          "a": {
+            "deviceId": "core",
+            "ifaceId": "p2"
+          },
+          "b": {
+            "deviceId": "dist2",
+            "ifaceId": "p1"
+          }
+        },
+        {
+          "id": "b1",
+          "a": {
+            "deviceId": "dist1",
+            "ifaceId": "p2"
+          },
+          "b": {
+            "deviceId": "acc1",
+            "ifaceId": "p1"
+          }
+        },
+        {
+          "id": "b2",
+          "a": {
+            "deviceId": "dist2",
+            "ifaceId": "p2"
+          },
+          "b": {
+            "deviceId": "acc2",
+            "ifaceId": "p1"
+          }
+        },
+        {
+          "id": "d1",
+          "a": {
+            "deviceId": "pc1",
+            "ifaceId": "e0"
+          },
+          "b": {
+            "deviceId": "acc1",
+            "ifaceId": "p2"
+          }
+        },
+        {
+          "id": "d2",
+          "a": {
+            "deviceId": "pc2",
+            "ifaceId": "e0"
+          },
+          "b": {
+            "deviceId": "acc2",
+            "ifaceId": "p2"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "hybrid",
+    "name": "Hybrid",
+    "oneLine": "Different topologies joined together in one network.",
+    "status": "current",
+    "statusLabel": "What you'll actually find in the real world",
+    "whatItIs": "Any real network of reasonable size is a mix. A star in each office, a tree across the campus, a ring between buildings for resilience, a partial mesh linking sites in different cities. Each part uses whichever shape fits that job.",
+    "howDataTravels": "Depends where you are. Inside an office, traffic hits a switch and comes straight back. Going to another building, it might travel a fiber ring. Going to another city, it crosses a partial mesh of WAN links. A packet can pass through several topologies on one trip.",
+    "whereUsedToday": "Everywhere. No organization of any size picks one topology and stops. A university might run star in every classroom, tree across each building, a fiber ring between campuses, and partial-mesh links to its data centers and cloud providers. When a network engineer draws a diagram, this is what it looks like.",
+    "advantages": [
+      "Each part of the network uses the shape that fits it",
+      "Redundancy where it's needed, simplicity where it isn't",
+      "Grows naturally as the organization grows",
+      "Costs go where they matter"
+    ],
+    "drawbacks": [
+      "Complex — no single diagram explains the whole thing",
+      "Needs good documentation or nobody can troubleshoot it",
+      "Requires someone who understands all the pieces",
+      "Easy to end up with an accidental mess rather than a design"
+    ],
+    "goodToKnow": "Learning the individual topologies isn't academic busywork — it's so you can look at a real hybrid network and recognize which shape each part is using, and why someone chose it.",
+    "_sources": [
+      "Synthesis of the above sources"
+    ],
+    "initialState": {
+      "devices": [
+        {
+          "id": "pca1",
+          "kind": "pc",
+          "label": "PC-A1",
+          "powered": true,
+          "x": 0,
+          "y": 70,
+          "gateway": "192.168.10.1",
+          "interfaces": [
+            {
+              "id": "e0",
+              "name": "eth0",
+              "ip": "192.168.10.11",
+              "mask": "255.255.255.0",
+              "linkId": "a1"
+            }
+          ]
+        },
+        {
+          "id": "pca2",
+          "kind": "pc",
+          "label": "PC-A2",
+          "powered": true,
+          "x": 0,
+          "y": 490,
+          "gateway": "192.168.10.1",
+          "interfaces": [
+            {
+              "id": "e0",
+              "name": "eth0",
+              "ip": "192.168.10.12",
+              "mask": "255.255.255.0",
+              "linkId": "a2"
+            }
+          ]
+        },
+        {
+          "id": "pcb1",
+          "kind": "pc",
+          "label": "PC-B1",
+          "powered": true,
+          "x": 370,
+          "y": 70,
+          "gateway": "192.168.20.1",
+          "interfaces": [
+            {
+              "id": "e0",
+              "name": "eth0",
+              "ip": "192.168.20.11",
+              "mask": "255.255.255.0",
+              "linkId": "b1"
+            }
+          ]
+        },
+        {
+          "id": "swa",
+          "kind": "switch",
+          "label": "Office-SW",
+          "powered": true,
+          "x": 0,
+          "y": 280,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "p1",
+              "ip": null,
+              "mask": null,
+              "linkId": "a1"
+            },
+            {
+              "id": "p2",
+              "name": "p2",
+              "ip": null,
+              "mask": null,
+              "linkId": "a2"
+            },
+            {
+              "id": "p3",
+              "name": "p3",
+              "ip": null,
+              "mask": null,
+              "linkId": "a3"
+            },
+            {
+              "id": "p4",
+              "name": "p4",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            },
+            {
+              "id": "p5",
+              "name": "p5",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            },
+            {
+              "id": "p6",
+              "name": "p6",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        },
+        {
+          "id": "ra",
+          "kind": "router",
+          "label": "Router-A",
+          "powered": true,
+          "x": 185,
+          "y": 280,
+          "interfaces": [
+            {
+              "id": "g0",
+              "name": "e1",
+              "ip": "192.168.10.1",
+              "mask": "255.255.255.0",
+              "linkId": "a3"
+            },
+            {
+              "id": "g1",
+              "name": "e2",
+              "ip": "172.16.0.1",
+              "mask": "255.255.255.252",
+              "linkId": "bb"
+            }
+          ],
+          "routes": [
+            {
+              "dst": "192.168.20.0",
+              "mask": "255.255.255.0",
+              "gateway": "172.16.0.2"
+            }
+          ]
+        },
+        {
+          "id": "rb",
+          "kind": "router",
+          "label": "Router-B",
+          "powered": true,
+          "x": 185,
+          "y": 490,
+          "interfaces": [
+            {
+              "id": "g0",
+              "name": "e1",
+              "ip": "192.168.20.1",
+              "mask": "255.255.255.0",
+              "linkId": "b0"
+            },
+            {
+              "id": "g1",
+              "name": "e2",
+              "ip": "172.16.0.2",
+              "mask": "255.255.255.252",
+              "linkId": "bb"
+            }
+          ],
+          "routes": [
+            {
+              "dst": "192.168.10.0",
+              "mask": "255.255.255.0",
+              "gateway": "172.16.0.1"
+            }
+          ]
+        },
+        {
+          "id": "swb1",
+          "kind": "switch",
+          "label": "Ring-B1",
+          "powered": true,
+          "x": 370,
+          "y": 490,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "p1",
+              "ip": null,
+              "mask": null,
+              "linkId": "r1"
+            },
+            {
+              "id": "p2",
+              "name": "p2",
+              "ip": null,
+              "mask": null,
+              "linkId": "r3"
+            },
+            {
+              "id": "p3",
+              "name": "p3",
+              "ip": null,
+              "mask": null,
+              "linkId": "b0"
+            },
+            {
+              "id": "p4",
+              "name": "p4",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        },
+        {
+          "id": "swb2",
+          "kind": "switch",
+          "label": "Ring-B2",
+          "powered": true,
+          "x": 555,
+          "y": 490,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "p1",
+              "ip": null,
+              "mask": null,
+              "linkId": "r1"
+            },
+            {
+              "id": "p2",
+              "name": "p2",
+              "ip": null,
+              "mask": null,
+              "linkId": "r2"
+            },
+            {
+              "id": "p3",
+              "name": "p3",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            },
+            {
+              "id": "p4",
+              "name": "p4",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        },
+        {
+          "id": "swb3",
+          "kind": "switch",
+          "label": "Ring-B3",
+          "powered": true,
+          "x": 555,
+          "y": 280,
+          "interfaces": [
+            {
+              "id": "p1",
+              "name": "p1",
+              "ip": null,
+              "mask": null,
+              "linkId": "r2"
+            },
+            {
+              "id": "p2",
+              "name": "p2",
+              "ip": null,
+              "mask": null,
+              "linkId": "r3"
+            },
+            {
+              "id": "p3",
+              "name": "p3",
+              "ip": null,
+              "mask": null,
+              "linkId": "b1"
+            },
+            {
+              "id": "p4",
+              "name": "p4",
+              "ip": null,
+              "mask": null,
+              "linkId": null
+            }
+          ]
+        }
+      ],
+      "links": [
+        {
+          "id": "a1",
+          "a": {
+            "deviceId": "pca1",
+            "ifaceId": "e0"
+          },
+          "b": {
+            "deviceId": "swa",
+            "ifaceId": "p1"
+          }
+        },
+        {
+          "id": "a2",
+          "a": {
+            "deviceId": "pca2",
+            "ifaceId": "e0"
+          },
+          "b": {
+            "deviceId": "swa",
+            "ifaceId": "p2"
+          }
+        },
+        {
+          "id": "a3",
+          "a": {
+            "deviceId": "swa",
+            "ifaceId": "p3"
+          },
+          "b": {
+            "deviceId": "ra",
+            "ifaceId": "g0"
+          }
+        },
+        {
+          "id": "bb",
+          "a": {
+            "deviceId": "ra",
+            "ifaceId": "g1"
+          },
+          "b": {
+            "deviceId": "rb",
+            "ifaceId": "g1"
+          }
+        },
+        {
+          "id": "b0",
+          "a": {
+            "deviceId": "rb",
+            "ifaceId": "g0"
+          },
+          "b": {
+            "deviceId": "swb1",
+            "ifaceId": "p3"
+          }
+        },
+        {
+          "id": "r1",
+          "a": {
+            "deviceId": "swb1",
+            "ifaceId": "p1"
+          },
+          "b": {
+            "deviceId": "swb2",
+            "ifaceId": "p1"
+          }
+        },
+        {
+          "id": "r2",
+          "a": {
+            "deviceId": "swb2",
+            "ifaceId": "p2"
+          },
+          "b": {
+            "deviceId": "swb3",
+            "ifaceId": "p1"
+          }
+        },
+        {
+          "id": "r3",
+          "a": {
+            "deviceId": "swb3",
+            "ifaceId": "p2"
+          },
+          "b": {
+            "deviceId": "swb1",
+            "ifaceId": "p2"
+          }
+        },
+        {
+          "id": "b1",
+          "a": {
+            "deviceId": "pcb1",
+            "ifaceId": "e0"
+          },
+          "b": {
+            "deviceId": "swb3",
+            "ifaceId": "p3"
+          }
+        }
+      ]
+    }
+  }
+]

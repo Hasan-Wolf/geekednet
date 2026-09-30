@@ -1,0 +1,73 @@
+{
+  "id": "tier1-fix-mask.learn",
+  "tier": 1,
+  "mode": "learn",
+  "fidelity": "A",
+  "title": "The Silent PC",
+  "brief": "PC1 and PC2 are configured, but they can't reach each other. Something's wrong with the addressing. Diagnose and fix it.",
+  "initialState": {
+    "devices": [
+      {
+        "id": "pc1",
+        "kind": "pc",
+        "label": "PC1",
+        "powered": true,
+        "x": 80,
+        "y": 180,
+        "interfaces": [{ "id": "e0", "name": "eth0", "ip": "192.168.1.10", "mask": "255.255.255.0", "linkId": "l1" }]
+      },
+      {
+        "id": "pc2",
+        "kind": "pc",
+        "label": "PC2",
+        "powered": true,
+        "x": 460,
+        "y": 180,
+        "interfaces": [{ "id": "e0", "name": "eth0", "ip": "192.168.1.11", "mask": "255.255.255.128", "linkId": "l2" }]
+      },
+      {
+        "id": "sw",
+        "kind": "switch",
+        "label": "Switch",
+        "powered": true,
+        "x": 270,
+        "y": 180,
+        "interfaces": [
+          { "id": "p1", "name": "port1", "linkId": "l1" },
+          { "id": "p2", "name": "port2", "linkId": "l2" }
+        ]
+      }
+    ],
+    "links": [
+      { "id": "l1", "a": { "deviceId": "pc1", "ifaceId": "e0" }, "b": { "deviceId": "sw", "ifaceId": "p1" } },
+      { "id": "l2", "a": { "deviceId": "pc2", "ifaceId": "e0" }, "b": { "deviceId": "sw", "ifaceId": "p2" } }
+    ]
+  },
+  "objectives": [
+    {
+      "id": "o1",
+      "description": "Correct PC2's subnet mask",
+      "check": { "type": "ifaceHasIp", "device": "pc2", "iface": "e0", "ip": "192.168.1.11", "mask": "255.255.255.0" }
+    },
+    {
+      "id": "o2",
+      "description": "PC1 can ping PC2",
+      "check": { "type": "canPing", "from": "pc1", "toIp": "192.168.1.11" }
+    }
+  ],
+  "verify": {
+    "from": "pc1",
+    "toIp": "192.168.1.11",
+    "prompt": "PC2 should answer now. Click PC1 and run ping 192.168.1.11 — the fix only counts once the reply comes back."
+  },
+  "hints": [
+    { "level": 1, "text": "The IPs look fine and both start with 192.168.1. Look more carefully at the masks — are they the same?" },
+    { "level": 2, "text": "PC2's mask is 255.255.255.128 (a /25). PC1 is a /24. Different mask = the PCs disagree about who's local." },
+    { "level": 3, "text": "Open PC2 -> change the mask to 255.255.255.0 to match PC1, then ping again." }
+  ],
+  "botOpeners": [
+    "Both PCs have addresses, yet the ping fails. When that happens, suspect the mask.",
+    "Compare PC1 and PC2 side by side — one field doesn't match."
+  ],
+  "rewards": { "xp": 150, "badges": ["subnet-master"], "unlocks": ["tier2-static-route.learn"] }
+}

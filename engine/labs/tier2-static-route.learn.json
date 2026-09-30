@@ -1,0 +1,91 @@
+{
+  "id": "tier2-static-route.learn",
+  "tier": 2,
+  "mode": "learn",
+  "fidelity": "A",
+  "title": "Two Islands, One Bridge",
+  "brief": "Two networks, each behind its own router, joined by a backbone link. The PCs can't reach across. Teach each router the way to the other side.",
+  "initialState": {
+    "devices": [
+      {
+        "id": "pcR",
+        "kind": "pc",
+        "label": "PC-Red",
+        "powered": true,
+        "x": 40,
+        "y": 120,
+        "gateway": "10.0.0.1",
+        "interfaces": [{ "id": "e0", "name": "eth0", "ip": "10.0.0.10", "mask": "255.255.255.0", "linkId": "lr" }]
+      },
+      {
+        "id": "r1",
+        "kind": "router",
+        "label": "Router-Red",
+        "powered": true,
+        "x": 210,
+        "y": 120,
+        "interfaces": [
+          { "id": "g0", "name": "ether1", "ip": "10.0.0.1", "mask": "255.255.255.0", "linkId": "lr" },
+          { "id": "g1", "name": "ether2", "ip": "172.16.0.1", "mask": "255.255.255.252", "linkId": "bb" }
+        ],
+        "routes": []
+      },
+      {
+        "id": "r2",
+        "kind": "router",
+        "label": "Router-Blue",
+        "powered": true,
+        "x": 400,
+        "y": 120,
+        "interfaces": [
+          { "id": "g0", "name": "ether1", "ip": "20.0.0.1", "mask": "255.255.255.0", "linkId": "lb" },
+          { "id": "g1", "name": "ether2", "ip": "172.16.0.2", "mask": "255.255.255.252", "linkId": "bb" }
+        ],
+        "routes": []
+      },
+      {
+        "id": "pcB",
+        "kind": "pc",
+        "label": "PC-Blue",
+        "powered": true,
+        "x": 560,
+        "y": 120,
+        "gateway": "20.0.0.1",
+        "interfaces": [{ "id": "e0", "name": "eth0", "ip": "20.0.0.10", "mask": "255.255.255.0", "linkId": "lb" }]
+      }
+    ],
+    "links": [
+      { "id": "lr", "a": { "deviceId": "pcR", "ifaceId": "e0" }, "b": { "deviceId": "r1", "ifaceId": "g0" } },
+      { "id": "bb", "a": { "deviceId": "r1", "ifaceId": "g1" }, "b": { "deviceId": "r2", "ifaceId": "g1" } },
+      { "id": "lb", "a": { "deviceId": "r2", "ifaceId": "g0" }, "b": { "deviceId": "pcB", "ifaceId": "e0" } }
+    ]
+  },
+  "objectives": [
+    {
+      "id": "o1",
+      "description": "Router-Red knows the route to 20.0.0.0/24",
+      "check": { "type": "hasRoute", "device": "r1", "dst": "20.0.0.0", "mask": "255.255.255.0", "gateway": "172.16.0.2" }
+    },
+    {
+      "id": "o2",
+      "description": "Router-Blue knows the route to 10.0.0.0/24",
+      "check": { "type": "hasRoute", "device": "r2", "dst": "10.0.0.0", "mask": "255.255.255.0", "gateway": "172.16.0.1" }
+    },
+    {
+      "id": "o3",
+      "description": "PC-Red can ping PC-Blue",
+      "check": { "type": "canPing", "from": "pcR", "toIp": "20.0.0.10" }
+    }
+  ],
+  "verify": { "from": "pcR", "toIp": "20.0.0.10" },
+  "hints": [
+    { "level": 1, "text": "Each router knows only the networks directly plugged into it. Neither knows the OTHER side's network yet." },
+    { "level": 2, "text": "Router-Red needs a route to 20.0.0.0/24 via its backbone neighbor 172.16.0.2. Router-Blue needs the mirror: 10.0.0.0/24 via 172.16.0.1." },
+    { "level": 3, "text": "On Router-Red add route dst 20.0.0.0/24 gateway 172.16.0.2. On Router-Blue add dst 10.0.0.0/24 gateway 172.16.0.1. Then ping across." }
+  ],
+  "botOpeners": [
+    "A router is a post office — it only delivers to addresses it has on file. Right now each router's list is missing the far network.",
+    "You'll add one route on each router. They mirror each other."
+  ],
+  "rewards": { "xp": 250, "badges": ["route-finder"], "unlocks": ["tier2-static-route.practice", "flagship-nmap-recon.learn"] }
+}
