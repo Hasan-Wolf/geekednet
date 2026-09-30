@@ -8,6 +8,11 @@ GeekedNet is built on a single simulation engine, with every lesson authored as 
 
 Beginner and advanced labs are the same engine. The difference is how much config surface is unlocked.
 
+Below 900px the screen gets a stacked, read-only layout instead of the builder: the lab arrives already
+built and addressed, and a single button sends a packet across it. It is driven by the same engine and the
+same lab files — the solved state is derived from each lab's own objectives, so no topology is authored
+twice. Above that width the desktop stage is untouched.
+
 ## Running it locally
 
 Requires [Node.js](https://nodejs.org) 18 or newer (developed on 24).
@@ -44,6 +49,7 @@ src/         React UI that consumes the engine's public API
   components/      canvas, terminal, config panel, objectives
   terminalEngine.ts  the in-lab CLI
   topologies/      topology reference data
+  phone/           the stacked read-only layout below 900px
 ```
 
 The engine is deliberately independent of the UI: it has no React dependency and is tested on its own. Vite and Vitest both resolve the engine's `.js` import specifiers to their TypeScript sources, so there is no build step between the two halves.

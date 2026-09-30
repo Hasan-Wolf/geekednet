@@ -643,15 +643,29 @@ function BlockedMarker({ net, deviceId }: { net: NetworkState; deviceId: string 
  * correctly: while the routes share cables the heads sit exactly on top of each
  * other — one frame on one wire — and they separate at the precise device where
  * the cabling itself separates. A short branch simply finishes first.
+ *
+ * Exported because the phone layout draws packets on its own tap-only SVG and
+ * must draw them with *this* animator: it is the one that walks the real cable
+ * routes, and a second copy of it would be a second answer to "where does a
+ * packet actually go".
  */
-function Packet({
+export function Packet({
   net,
   packet,
   onArrive,
+  sizeScale = 1,
 }: {
   net: NetworkState;
   packet: PacketAnim;
   onArrive: (packetId: number) => void;
+  /**
+   * Multiplier on the head and its streak — the glowing furniture, never the
+   * route. The phone's SVG shrinks a desktop-sized layout to fit a handset, and
+   * a 5.5px dot scaled with it stops being visible; this puts the size back
+   * without moving the packet off the cable it is on. Defaults to 1, which is
+   * the desktop canvas exactly as before.
+   */
+  sizeScale?: number;
 }) {
   const [heads, setHeads] = useState<Head[]>([]);
   // Read live rather than depended on: a device dragged mid-flight re-routes the
@@ -706,7 +720,7 @@ function Packet({
             // A verifying packet is spent once it lands; an ordinary one stays
             // put at the destination, the way it always has.
             if (p >= 1 && packet.verify) continue;
-            next.push(headAt(geo, Math.min(1, p), packet.verify ? TRAIL_LEN : 0));
+            next.push(headAt(geo, Math.min(1, p), packet.verify ? TRAIL_LEN * sizeScale : 0));
           }
         }
         setHeads(next);
@@ -719,7 +733,7 @@ function Packet({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [packet.id, packet.verify, packet.path, packet.recipients, onArrive]);
+  }, [packet.id, packet.verify, packet.path, packet.recipients, onArrive, sizeScale]);
 
   const stoppedAt = blockedAt(packet.path, packet.success);
 
@@ -731,7 +745,7 @@ function Packet({
           key={i}
           gradId={`packet-streak-${packet.id}-${i}`}
           head={head}
-          r={packet.verify ? 7 : 5.5}
+          r={(packet.verify ? 7 : 5.5) * sizeScale}
           className={`packet${packet.success ? '' : ' fail'}${packet.verify ? ' verify' : ''}`}
         />
       ))}
@@ -780,8 +794,20 @@ function useReducedMotion(): boolean {
  * ambience, not feedback. It stops when the store drops `ambientPath` (the bar
  * dismissed, or the next lab loaded), pauses while the tab is hidden, and never
  * starts at all under `prefers-reduced-motion`.
+ *
+ * Exported alongside {@link Packet}: on the phone it is what explains where a
+ * landed packet went, and it has to trace the same cables.
  */
-function AmbientLink({ net, path }: { net: NetworkState; path: string[] }) {
+export function AmbientLink({
+  net,
+  path,
+  sizeScale = 1,
+}: {
+  net: NetworkState;
+  path: string[];
+  /** See {@link Packet}'s `sizeScale`. */
+  sizeScale?: number;
+}) {
   const [dots, setDots] = useState<Head[]>([]);
   const reduced = useReducedMotion();
   // Same trick as Packet: the loop reads the live network every frame instead of
@@ -810,7 +836,7 @@ function AmbientLink({ net, path }: { net: NetworkState; path: string[] }) {
         phase.current = (phase.current + (now - last) / ambientLapMs(geo.total)) % 1;
         setDots(
           Array.from({ length: AMBIENT_DOTS }, (_, i) =>
-            headAt(geo, (phase.current + i / AMBIENT_DOTS) % 1, AMBIENT_TRAIL_LEN),
+            headAt(geo, (phase.current + i / AMBIENT_DOTS) % 1, AMBIENT_TRAIL_LEN * sizeScale),
           ),
         );
       } else {
@@ -837,12 +863,18 @@ function AmbientLink({ net, path }: { net: NetworkState; path: string[] }) {
       pause();
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [path, reduced]);
+  }, [path, reduced, sizeScale]);
 
   return (
     <g className="ambient-link">
       {dots.map((head, i) => (
-        <PacketHead key={i} gradId={`ambient-streak-${i}`} head={head} r={4} className="packet ambient" />
+        <PacketHead
+          key={i}
+          gradId={`ambient-streak-${i}`}
+          head={head}
+          r={4 * sizeScale}
+          className="packet ambient"
+        />
       ))}
     </g>
   );

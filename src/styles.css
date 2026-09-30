@@ -2205,3 +2205,489 @@ body.resizing-term * {
   line-height: 1.5;
   color: var(--text-muted);
 }
+
+/* ========================== Phone layout ===========================
+   Everything below 900px. Class-prefixed rather than media-queried on purpose:
+   the phone tree and the desktop tree are never mounted at the same time (see
+   App), so no rule in this section can reach the desktop stage — and no rule
+   above it has to be undone here.
+
+   The page scrolls inside its own root: `body` keeps `overflow: hidden` so the
+   desktop stage above still can't be scrolled out of shape. */
+.ph-app {
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 14px calc(28px + env(safe-area-inset-bottom, 0px));
+}
+/* A column flex item shrinks to fit its container by default, which on a page
+   taller than the screen means every section squashed into the viewport instead
+   of the page scrolling. Nothing here gives ground: the page is as tall as its
+   content and scrolls.
+
+   The two overlay bars — the header at the top, the ping button at the bottom —
+   also mean anything scrolled to (the device card opening on a tap, a browser
+   restoring a position, an anchor) has to stop short of both, or the thing just
+   scrolled to is the thing hidden behind a bar. */
+.ph-app > * {
+  flex: none;
+  scroll-margin-top: calc(60px + env(safe-area-inset-top, 0px));
+  scroll-margin-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+}
+
+/* ---- Header ---- */
+.ph-top {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 -14px;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 14px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(10, 15, 30, 0.88);
+  backdrop-filter: blur(10px);
+}
+.ph-top .logo {
+  font-size: 15px;
+}
+.ph-tag {
+  margin-left: auto;
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--brand-cyan-soft);
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 211, 238, 0.45);
+  background: rgba(34, 211, 238, 0.1);
+  white-space: nowrap;
+}
+
+/* ---- Lab picker ----
+   One row, scrolling sideways. Snapping, because a half-visible chip on a
+   handset reads as a broken layout rather than as "there is more this way". */
+.ph-labs {
+  margin: 0 -14px;
+  /* Edge-to-edge scroller, gutter on the row inside it: padding on a scroll
+     container is scrolled past (and not always counted in its scrollWidth), so
+     the first chip would lose its inset the moment the row moved. `scroll-
+     padding` is what keeps a snapped chip clear of the screen edge. */
+  overflow-x: auto;
+  overflow-y: visible;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 14px;
+}
+.ph-labs::-webkit-scrollbar {
+  display: none;
+}
+.ph-labs-row {
+  display: flex;
+  gap: 8px;
+  width: max-content;
+  padding: 2px 14px;
+}
+.ph-lab {
+  flex: none;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 132px;
+  /* Comfortably over the 44px touch-target floor. */
+  min-height: 56px;
+  padding: 9px 13px;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  text-align: left;
+}
+.ph-lab.active {
+  border-color: transparent;
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.26), rgba(139, 92, 246, 0.3));
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.22);
+}
+.ph-lab:focus-visible {
+  outline: 2px solid var(--brand-cyan-soft);
+  outline-offset: 2px;
+}
+.ph-lab-tier {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--brand-cyan);
+}
+.ph-lab-done {
+  color: var(--status-up);
+}
+.ph-lab-title {
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+/* ---- Panels ---- */
+.ph-panel {
+  padding: 13px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-panel);
+}
+.ph-panel-head {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--brand-cyan);
+  margin-bottom: 9px;
+}
+.ph-muted {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+.ph-lab-heading {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+/* Says out loud what the canvas is showing: the finished lab, not an attempt. */
+.ph-built {
+  display: inline-block;
+  margin: 7px 0 9px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--brand-cyan-soft);
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 211, 238, 0.4);
+  background: rgba(34, 211, 238, 0.08);
+}
+.ph-brief-text {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+/* ---- Canvas ----
+   The lab's own layout, fitted to the screen by the viewBox alone. The grid is
+   the desktop canvas's grid, so the map reads as the same surface. */
+.ph-canvas-frame {
+  padding: 4px;
+  border-radius: 14px;
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  background-color: rgba(10, 15, 30, 0.55);
+  background-image:
+    linear-gradient(rgba(44, 62, 110, 0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(44, 62, 110, 0.16) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+.ph-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* A tall shape letterboxes rather than pushing the rest of the page off the
+     screen; `preserveAspectRatio` keeps it centred when it does. */
+  max-height: 52vh;
+  /* Nothing here pans or zooms, so the browser's own gestures stay with the
+     page — a tap is the only thing the canvas wants. */
+  touch-action: manipulation;
+}
+/* Cables and packet streaks are stroked in layout units, and the whole layout
+   arrives shrunk; these put the line weight back where the eye expects it. */
+.ph-canvas .cable {
+  stroke-width: 4.5;
+}
+.ph-canvas .packet-streak {
+  stroke-width: 7;
+}
+
+.ph-node {
+  cursor: pointer;
+}
+.ph-node:focus {
+  outline: none;
+}
+/* The tap target: painted (so it takes the tap) but invisible, and larger than
+   the box it surrounds. */
+.ph-node .ph-hit {
+  fill: transparent;
+  pointer-events: all;
+}
+.ph-node .ph-box {
+  fill: var(--bg-elevated);
+  stroke: var(--brand-cyan);
+  stroke-width: 1.4;
+}
+.ph-node.off .ph-box {
+  stroke: var(--border-subtle);
+  fill: #131a2c;
+}
+.ph-node.selected .ph-box {
+  stroke: var(--brand-violet);
+  stroke-width: 2.4;
+  filter: drop-shadow(0 0 10px rgba(139, 92, 246, 0.75));
+}
+.ph-node:focus-visible .ph-box {
+  stroke: var(--brand-cyan-soft);
+  stroke-width: 2.4;
+}
+.ph-node .ph-icon {
+  color: var(--brand-cyan);
+  pointer-events: none;
+}
+.ph-node.off .ph-icon {
+  color: var(--text-muted);
+}
+.ph-node .ph-stat {
+  stroke: var(--bg-elevated);
+  stroke-width: 2;
+}
+.ph-node .ph-stat.up {
+  fill: var(--status-up);
+}
+.ph-node .ph-stat.degraded {
+  fill: var(--status-warn);
+}
+.ph-node .ph-stat.down {
+  fill: var(--status-down);
+}
+.ph-node .ph-lbl {
+  fill: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 17px;
+  font-weight: 600;
+  pointer-events: none;
+}
+.ph-node .ph-ip {
+  fill: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  pointer-events: none;
+}
+
+/* ---- Run ping ----
+   The page's one action, and sized like it. */
+.ph-ping-wrap {
+  position: sticky;
+  bottom: 0;
+  z-index: 9;
+  margin: 0 -14px;
+  padding: 8px 14px calc(8px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, rgba(7, 11, 20, 0), rgba(7, 11, 20, 0.92) 55%);
+}
+.ph-ping {
+  width: 100%;
+  min-height: 62px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--brand-cyan);
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.3), rgba(139, 92, 246, 0.34));
+  color: #fff;
+  box-shadow: 0 0 22px rgba(34, 211, 238, 0.26);
+  transition: filter 0.15s, box-shadow 0.15s;
+}
+.ph-ping:active:not(:disabled) {
+  filter: brightness(1.15);
+}
+.ph-ping:focus-visible {
+  outline: 2px solid var(--brand-cyan-soft);
+  outline-offset: 2px;
+}
+.ph-ping:disabled {
+  opacity: 0.6;
+  cursor: default;
+  box-shadow: none;
+}
+.ph-ping-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.ph-ping-glyph {
+  font-size: 12px;
+  color: var(--brand-cyan-soft);
+}
+.ph-ping-sub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: rgba(230, 237, 247, 0.82);
+}
+
+/* ---- Terminal (output only — the button is the input) ---- */
+.ph-term {
+  max-height: 210px;
+  overflow-y: auto;
+  padding: 10px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: #080d1a;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+/* ---- Device card (the config panel, read-only) ---- */
+.ph-dev-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.ph-dev-name {
+  font-family: var(--font-display);
+  font-size: 15.5px;
+  font-weight: 600;
+}
+.ph-dev-kind {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.ph-dev-link {
+  margin-left: auto;
+  flex: 1 1 auto;
+  max-width: 55%;
+  font-size: 10.5px;
+  line-height: 1.45;
+  text-align: right;
+  color: var(--text-muted);
+}
+.ph-dev-link.up {
+  color: var(--status-up);
+}
+.ph-dev-link.degraded {
+  color: var(--status-warn);
+}
+.ph-dev-link.down {
+  color: var(--status-down);
+}
+.ph-field-label {
+  margin: 12px 0 7px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.ph-iface {
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+}
+.ph-iface + .ph-iface {
+  margin-top: 7px;
+}
+.ph-iface-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.ph-iface-name {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--brand-cyan-soft);
+}
+.ph-iface-link {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.ph-iface-link.connected {
+  color: var(--status-up);
+}
+/* Label / value pairs, the shape the desktop panel's fields have once the inputs
+   are gone. */
+.ph-kv {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 12px;
+  font-size: 12px;
+}
+.ph-kv-standalone {
+  margin-top: 12px;
+}
+.ph-kv dt {
+  color: var(--text-muted);
+}
+.ph-kv dd {
+  font-family: var(--font-mono);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.ph-routes {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ph-routes li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.ph-routes code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border-glow);
+  background: var(--bg-void);
+  color: var(--brand-cyan-soft);
+}
+
+/* ---- The card that names the thing this layout can't do ---- */
+.ph-desktop-card {
+  padding: 15px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--brand-violet);
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.1), rgba(139, 92, 246, 0.16));
+}
+.ph-desktop-card h2 {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 7px;
+}
+.ph-desktop-card p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
