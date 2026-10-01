@@ -1,6 +1,11 @@
 /** App shell: topbar (logo · phase tabs · lab selector · XP) and the three-column
  *  stage (palette · canvas · side). Lab completion is announced by the win bar,
- *  which lives inside the canvas column — see components/WinBar. */
+ *  which lives inside the canvas column — see components/WinBar.
+ *
+ *  Below 900px none of that renders: {@link App} hands the screen to the stacked
+ *  read-only phone layout instead (see phone/PhoneApp). The two are separate
+ *  trees rather than one tree restyled, so the desktop stage — its components,
+ *  its resizers, its behaviour — is exactly what it was above the breakpoint. */
 import {
   useCallback,
   useEffect,
@@ -17,6 +22,8 @@ import { ConfigPanel } from './components/ConfigPanel.js';
 import { Objectives } from './components/Objectives.js';
 import { TopologyPanel } from './components/Topology.js';
 import { Terminal } from './components/Terminal.js';
+import { PhoneApp } from './phone/PhoneApp.js';
+import { useIsPhone } from './phone/usePhoneLayout.js';
 
 const PHASES = [
   { key: 'setup', label: 'Setup', color: 'var(--phase-setup)' },
@@ -282,7 +289,18 @@ function useSideWidth() {
   return { width, dragging, onPointerDown, onPointerMove, endDrag, onKeyDown };
 }
 
+/**
+ * Which layout the screen gets.
+ *
+ * The only thing shared across the breakpoint is the store, so nothing about the
+ * phone layout can reach the desktop one: below 900px `DesktopApp` is not
+ * mounted, and at or above it no phone component exists in the tree at all.
+ */
 export function App() {
+  return useIsPhone() ? <PhoneApp /> : <DesktopApp />;
+}
+
+function DesktopApp() {
   const labs = useStore((s) => s.labs);
   const activeLabId = useStore((s) => s.activeLabId);
   const activeLab = labs.find((l) => l.id === activeLabId)!;

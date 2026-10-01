@@ -25,6 +25,7 @@ import {
 import { makeDevice, nextId } from './devices.js';
 import { runCommand, type TermLine } from './terminalEngine.js';
 import { TOPOLOGIES, demoPing, getTopology, type TopologyDemo } from './topologies/index.js';
+import { solveLab } from './phone/solveLab.js';
 
 // A free-build playground so "build Mission 1 from an empty canvas" is literal.
 const SANDBOX: Lab = {
@@ -155,6 +156,22 @@ interface AppState {
   topologyMode: boolean;
   topologyId: string | null;
 
+  /**
+   * Phone layout — the stacked read-only view below 900px.
+   *
+   * Orthogonal to `activeLabId` for the same reason `topologyMode` is: the phone
+   * shows a lab *solved*, which is not a lab attempt, so it must not be mistaken
+   * for one. `phoneMode` says the phone layout owns the canvas; `phoneLabId`
+   * says which lab is on it, already built and already addressed by
+   * {@link solveLab}. The desktop's own `activeLabId` is left exactly as it was,
+   * so widening the window back past the breakpoint returns the player to the
+   * lab they were actually playing.
+   *
+   * Nothing here is graded, awarded or persisted — see {@link ungraded}.
+   */
+  phoneMode: boolean;
+  phoneLabId: string | null;
+
   network: NetworkState;
   selectedDeviceId: string | null;
   objectiveResults: ObjectiveResult[];
@@ -208,6 +225,11 @@ interface AppState {
   backToTopologies: () => void;
   /** Undo every edit the student made to the loaded topology. */
   resetTopology: () => void;
+  /** Put a lab on the canvas for the phone layout: its own topology, already
+   *  built and addressed. Read-only — nothing about it can be scored. */
+  loadPhoneLab: (id: string) => void;
+  /** Leave the phone layout and hand the canvas back to the desktop's own lab. */
+  exitPhoneMode: () => void;
   selectDevice: (id: string | null) => void;
   addDevice: (kind: DeviceKind, x: number, y: number) => void;
   moveDevice: (id: string, x: number, y: number) => void;
@@ -252,18 +274,25 @@ function recompute(labs: Lab[], labId: string, network: NetworkState, history: s
 /**
  * Is what's on the canvas graded?
  *
- * Two things on this canvas are not: the free-build sandbox, and a Learn
- * Topology demo. Neither has objectives, so neither can be evaluated, awarded,
- * or gated behind a verifying ping — and both get the "link alive" idle loop
- * after any successful ping, because it is the only lasting feedback they have.
+ * Three things on this canvas are not: the free-build sandbox, a Learn Topology
+ * demo, and the phone layout. None of them can be evaluated, awarded, or gated
+ * behind a verifying ping — and all of them get the "link alive" idle loop after
+ * any successful ping, because it is the only lasting feedback they have.
  *
- * A demo has to be named explicitly rather than inferred from its objectives:
- * `activeLabId` still points at whichever lab the student last had open, and
- * evaluating *that* lab's objectives against a topology's network would be
+ * A demo and the phone layout both have to be named explicitly rather than
+ * inferred from objectives: `activeLabId` still points at whichever lab the
+ * student last had open, and evaluating *that* lab's objectives against a
+ * topology's network — or against a lab the phone has already solved — would be
  * meaningless at best and would bank its XP at worst.
  */
-function ungraded(s: Pick<AppState, 'topologyMode' | 'labs' | 'activeLabId'>): boolean {
-  return s.topologyMode || activeLab(s.labs, s.activeLabId).objectives.length === 0;
+function ungraded(
+  s: Pick<AppState, 'topologyMode' | 'phoneMode' | 'labs' | 'activeLabId'>,
+): boolean {
+  return (
+    s.topologyMode ||
+    s.phoneMode ||
+    activeLab(s.labs, s.activeLabId).objectives.length === 0
+  );
 }
 
 /** Pick a sensible default shell device (first powered host, else first device). */
@@ -359,11 +388,12 @@ export const useStore = create<AppState>((set, get) => {
    */
   function maybeComplete(objectiveResults: ObjectiveResult[], verified = false) {
     const s = get();
-    // A Learn Topology demo can never complete a lab, whatever is on the canvas.
-    // Guarded here as well as at every call site: this is the function that
-    // hands out XP, and a demo must not be one edit away from banking someone
-    // else's mission.
-    if (s.topologyMode) return;
+    // Neither a Learn Topology demo nor the phone's read-only view can complete
+    // a lab, whatever is on the canvas. Guarded here as well as at every call
+    // site: this is the function that hands out XP, and a demo — or a lab the
+    // phone handed over already solved — must not be one edit away from banking
+    // someone else's mission.
+    if (s.topologyMode || s.phoneMode) return;
     const lab = activeLab(s.labs, s.activeLabId);
     if (lab.objectives.length === 0) return; // sandbox
     if (s.completedLabs.includes(lab.id)) return; // already banked; replaying it
@@ -395,18 +425,30 @@ export const useStore = create<AppState>((set, get) => {
   }
 
   /**
-   * The canvas as a Learn Topology view leaves it.
+   * The canvas as an ungraded view leaves it.
    *
-   * Four entry points land here — opening the phase, loading a shape, going
-   * back to the list, and resetting — and every one of them has to clear the
-   * same set of leftovers. Written once so none of them can forget a field, and
-   * `objectiveResults` is empty by construction rather than by evaluation: a
-   * demo is never graded.
+   * Six entry points land here — opening Learn Topology, loading a shape, going
+   * back to the list, resetting one, and the phone layout loading or switching
+   * a lab — and every one of them has to clear the same set of leftovers.
+   * Written once so none of them can forget a field, and `objectiveResults` is
+   * empty by construction rather than by evaluation: nothing that lands here is
+   * graded.
+   *
+   * `owner` is which of the two ungraded views is taking the canvas; the other
+   * one's fields are cleared, because they share it and only one can hold it.
    */
-  function topologyCanvas(id: string | null, network: NetworkState, log: TermLine[]) {
+  function freshCanvas(
+    owner:
+      | { view: 'topology'; topologyId: string | null }
+      | { view: 'phone'; labId: string },
+    network: NetworkState,
+    log: TermLine[],
+  ) {
     return {
-      topologyMode: true,
-      topologyId: id,
+      topologyMode: owner.view === 'topology',
+      topologyId: owner.view === 'topology' ? owner.topologyId : null,
+      phoneMode: owner.view === 'phone',
+      phoneLabId: owner.view === 'phone' ? owner.labId : null,
       network,
       selectedDeviceId: null,
       connectMode: false,
@@ -430,6 +472,8 @@ export const useStore = create<AppState>((set, get) => {
     topologies: TOPOLOGIES,
     topologyMode: false,
     topologyId: null,
+    phoneMode: false,
+    phoneLabId: null,
     network: startNetwork,
     selectedDeviceId: null,
     objectiveResults: recompute(ALL_LABS, START_LAB_ID, startNetwork, []),
@@ -462,10 +506,13 @@ export const useStore = create<AppState>((set, get) => {
       const network = cloneState(lab.initialState);
       set({
         activeLabId: lab.id,
-        // Opening a lab leaves Learn Topology: the two share one canvas, and a
-        // graded mission must never be evaluated against a demo's network.
+        // Opening a lab leaves both ungraded views: all three share one canvas,
+        // and a graded mission must never be evaluated against a demo's network
+        // — or against the solved copy of itself the phone layout puts up.
         topologyMode: false,
         topologyId: null,
+        phoneMode: false,
+        phoneLabId: null,
         network,
         selectedDeviceId: null,
         connectMode: false,
@@ -509,7 +556,7 @@ export const useStore = create<AppState>((set, get) => {
 
     enterTopologyMode: () => {
       set(
-        topologyCanvas(null, { devices: [], links: [] }, [
+        freshCanvas({ view: 'topology', topologyId: null }, { devices: [], links: [] }, [
           { text: '# Learn Topology — pick a shape to load it, fully built.', cls: 'muted' },
           { text: 'Demos, not labs: nothing here is scored.', cls: 'muted' },
         ]),
@@ -538,7 +585,7 @@ export const useStore = create<AppState>((set, get) => {
           cls: 'muted',
         });
       }
-      set(topologyCanvas(demo.id, network, log));
+      set(freshCanvas({ view: 'topology', topologyId: demo.id }, network, log));
     },
 
     backToTopologies: () => get().enterTopologyMode(),
@@ -546,6 +593,51 @@ export const useStore = create<AppState>((set, get) => {
     resetTopology: () => {
       const demo = getTopology(get().topologyId);
       if (demo) get().loadTopology(demo.id);
+    },
+
+    /**
+     * Put a lab on the canvas the way the phone shows it: its own topology,
+     * already built and already addressed.
+     *
+     * `solveLab` derives that state from the lab's own objectives, so no
+     * topology, address or route is authored twice — and the canvas is marked
+     * ungraded, which is what keeps a read-only view from banking a mission it
+     * arrived with pre-solved.
+     *
+     * `activeLabId` is deliberately not touched: it is the lab the player is
+     * actually *playing*, and the phone must be able to hand it back untouched
+     * when the window widens past the breakpoint.
+     */
+    loadPhoneLab: (id) => {
+      const lab = activeLab(get().labs, id);
+      const network = solveLab(lab);
+      set(
+        freshCanvas({ view: 'phone', labId: lab.id }, network, [
+          { text: `# ${lab.title} — built and addressed, read-only.`, cls: 'muted' },
+          { text: '# Tap Run ping to send a packet across it.', cls: 'muted' },
+        ]),
+      );
+    },
+
+    /**
+     * Hand the canvas back to the desktop.
+     *
+     * A Learn Topology shape is handed straight over: the demo on the canvas is
+     * the same demo the desktop renders, from the same registry, so there is
+     * nothing to restore — only the phone's own flags to drop. (`phoneMode` is
+     * already false whenever `topologyMode` is; clearing it again is cheap and
+     * keeps this the one exit that cannot leave a flag behind.)
+     *
+     * A lab is not: the phone's picker is a read-only tour that lists every lab,
+     * so the one it left up may be one the campaign has not unlocked, and what
+     * it left on the canvas is that lab already solved. Reloading `activeLabId`
+     * — which the phone never writes — puts the player back exactly where their
+     * own progress had them, broken initial state and all.
+     */
+    exitPhoneMode: () => {
+      const wasTopology = get().topologyMode;
+      set({ phoneMode: false, phoneLabId: null });
+      if (!wasTopology) get().loadLab(get().activeLabId);
     },
 
     selectDevice: (id) => set({ selectedDeviceId: id }),
@@ -781,9 +873,15 @@ export const useStore = create<AppState>((set, get) => {
         return;
       }
 
-      // No lab behind a demo: its shell gets the plain engine, not the scripted
-      // outputs of whichever mission the student last had open.
-      const result = runCommand(s.network, deviceId, raw, s.topologyMode ? undefined : lab);
+      // No lab behind an ungraded canvas: its shell gets the plain engine, not
+      // the scripted outputs of whichever mission the student last had open —
+      // which, on the phone, is not even the lab on screen.
+      const result = runCommand(
+        s.network,
+        deviceId,
+        raw,
+        s.topologyMode || s.phoneMode ? undefined : lab,
+      );
       if (result.clear) {
         set({ terminalLog: [] });
         return;
