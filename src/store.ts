@@ -622,14 +622,22 @@ export const useStore = create<AppState>((set, get) => {
     /**
      * Hand the canvas back to the desktop.
      *
-     * The phone's picker is a read-only tour and lists every lab, so the one it
-     * left up may be one the campaign has not unlocked. Reloading `activeLabId`
-     * — which the phone never wrote — puts the player back exactly where their
+     * A Learn Topology shape is handed straight over: the demo on the canvas is
+     * the same demo the desktop renders, from the same registry, so there is
+     * nothing to restore — only the phone's own flags to drop. (`phoneMode` is
+     * already false whenever `topologyMode` is; clearing it again is cheap and
+     * keeps this the one exit that cannot leave a flag behind.)
+     *
+     * A lab is not: the phone's picker is a read-only tour that lists every lab,
+     * so the one it left up may be one the campaign has not unlocked, and what
+     * it left on the canvas is that lab already solved. Reloading `activeLabId`
+     * — which the phone never writes — puts the player back exactly where their
      * own progress had them, broken initial state and all.
      */
     exitPhoneMode: () => {
+      const wasTopology = get().topologyMode;
       set({ phoneMode: false, phoneLabId: null });
-      get().loadLab(get().activeLabId);
+      if (!wasTopology) get().loadLab(get().activeLabId);
     },
 
     selectDevice: (id) => set({ selectedDeviceId: id }),

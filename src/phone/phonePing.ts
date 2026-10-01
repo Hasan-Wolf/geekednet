@@ -8,10 +8,12 @@
  * destination by device (because the address is the student's choice) works the
  * same as one naming an address outright.
  *
- * A lab that declares no sign-off ping falls back to `demoPing`, the derivation
- * Learn Topology already uses: first host to the addressed host furthest from it
- * by cable — the run that actually crosses the shape. Nothing is authored for
- * the phone either way.
+ * A lab that declares no sign-off ping — and a Learn Topology shape, which is
+ * not a lab at all — falls back to `demoPing`, the derivation Learn Topology
+ * already uses: first host to the addressed host furthest from it by cable, the
+ * run that actually crosses the shape. Nothing is authored for the phone either
+ * way, and the button means the same thing in both of its sections: send the
+ * trip worth watching.
  */
 import {
   deviceOwningIp,
@@ -34,15 +36,18 @@ export interface PhonePing {
 }
 
 /**
- * The ping worth showing for this lab on this network, or null when the network
- * has nothing to ping (no addressed hosts, or a sender that isn't there).
+ * The ping worth showing for this network, or null when it has nothing to ping
+ * (no addressed hosts, or a sender that isn't there).
  *
- * Takes the live network rather than the lab's `initialState` so it names the
+ * `lab` is null for a Learn Topology shape: there is no mission behind it, so
+ * there is no sign-off ping to honour and the derivation is all there is.
+ *
+ * Takes the live network rather than any authored `initialState` so it names the
  * addresses actually on the canvas — including the ones `solveLab` chose.
  */
-export function phonePing(lab: Lab, net: NetworkState): PhonePing | null {
-  const from = lab.verify ? getDevice(net, lab.verify.from) : undefined;
-  const toIp = verifyTargetIp(lab, net);
+export function phonePing(lab: Lab | null, net: NetworkState): PhonePing | null {
+  const from = lab?.verify ? getDevice(net, lab.verify.from) : undefined;
+  const toIp = lab ? verifyTargetIp(lab, net) : undefined;
   if (from && toIp) {
     return {
       fromId: from.id,

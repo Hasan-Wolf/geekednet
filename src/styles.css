@@ -2691,3 +2691,203 @@ body.resizing-term * {
   line-height: 1.6;
   color: var(--text-primary);
 }
+
+/* ---- Section toggle ----
+   Labs or Learn Topology. The desktop carries Learn Topology as a fifth tab
+   beside the four campaign phases; there is no room for that here and nothing
+   to lock, so the phone states the real choice as two halves of one control. */
+.ph-toggle {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-panel);
+}
+.ph-toggle-btn {
+  flex: 1 1 0;
+  min-height: 42px;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.ph-toggle-btn.active {
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.28), rgba(139, 92, 246, 0.32));
+  color: #fff;
+  box-shadow: 0 0 16px rgba(34, 211, 238, 0.2);
+}
+.ph-toggle-btn:focus-visible {
+  outline: 2px solid var(--brand-cyan-soft);
+  outline-offset: 2px;
+}
+
+/* ---- The shapes, down the page ----
+   The desktop runs these across the canvas as one row of tall bars. Seven of
+   those side by side on a handset are seven slivers, so here each is a
+   full-width row and the page scrolls — the gesture a phone already expects. */
+.ph-topo-intro {
+  margin-bottom: 12px;
+}
+.ph-topo-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ph-topo {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  text-align: left;
+}
+/* The cap that makes a row read as one of the desktop's bars, turned on its
+   side: there it runs across the top, here down the leading edge. */
+.ph-topo::before {
+  content: '';
+  align-self: stretch;
+  flex: none;
+  width: 3px;
+  margin: -2px 0;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--brand-cyan), var(--brand-violet));
+  opacity: 0.6;
+}
+.ph-topo.historical {
+  opacity: 0.85;
+}
+.ph-topo:focus-visible {
+  outline: 2px solid var(--brand-cyan-soft);
+  outline-offset: 2px;
+}
+/* The desktop thumbnail, which sizes itself to whatever width it is given. */
+.ph-topo .topo-thumb {
+  flex: none;
+  width: 84px;
+}
+.ph-topo-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+.ph-topo-name {
+  font-family: var(--font-display);
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.ph-topo-line {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+.ph-topo .topo-badge {
+  margin-top: 1px;
+}
+
+/* ---- A loaded shape ---- */
+.ph-back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  margin-bottom: 9px;
+  padding: 8px 13px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.26), rgba(139, 92, 246, 0.3));
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.ph-back:focus-visible {
+  outline: 2px solid var(--brand-cyan-soft);
+  outline-offset: 2px;
+}
+.ph-topo-badge {
+  display: flex;
+  margin: 8px 0 10px;
+}
+
+/* ---- Pip's explanation, folded away ----
+   Six sections of prose between the canvas and the terminal would bury both, so
+   it is a native disclosure: closed by default, and free keyboard, screen-reader
+   and find-in-page behaviour. */
+.ph-explain {
+  border-radius: 14px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-panel);
+  overflow: hidden;
+}
+.ph-explain > summary {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 13px 40px 13px 14px;
+  position: relative;
+  cursor: pointer;
+  list-style: none;
+}
+.ph-explain > summary::-webkit-details-marker {
+  display: none;
+}
+/* The chevron, drawn rather than typed so it can rotate on open. */
+.ph-explain > summary::after {
+  content: '';
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin-top: -6px;
+  border-right: 2px solid var(--brand-cyan);
+  border-bottom: 2px solid var(--brand-cyan);
+  transform: rotate(45deg);
+  transition: transform 0.18s;
+}
+.ph-explain[open] > summary::after {
+  margin-top: -2px;
+  transform: rotate(-135deg);
+}
+.ph-explain > summary:focus-visible {
+  outline: 2px solid var(--brand-cyan-soft);
+  outline-offset: -2px;
+}
+.ph-explain-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+}
+.ph-explain-sub {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+/* The sections themselves are the desktop's `.topo-explain`, reused as they
+   are — same headings, same bullet treatment. */
+.ph-explain-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 2px 14px 14px;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 2px;
+  padding-top: 13px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ph-explain > summary::after {
+    transition: none;
+  }
+}

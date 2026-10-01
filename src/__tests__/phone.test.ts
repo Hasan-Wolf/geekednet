@@ -15,6 +15,13 @@
  * 4. **Desktop is untouched.** Leaving the phone layout puts the player's own
  *    lab back, broken starting state and all, on the lab they were playing —
  *    which the phone's picker is not allowed to have changed.
+ *
+ * Learn Topology is held to the same four. It adds no state and no data of its
+ * own: the phone drives the store's existing topology actions over the same
+ * registry, so what these pin down is that the shapes arrive unmodified, that
+ * the one button finds a ping that works on each of them, that a demo on a
+ * phone still cannot score, and that the two sections can never both hold the
+ * canvas.
  */
 import { describe, it, expect } from 'vitest';
 import {
@@ -28,6 +35,8 @@ import {
 } from '../../engine/index.js';
 import { ALL_LABS, useStore } from '../store.js';
 import { BOX_H, NODE_W } from '../components/Canvas.js';
+import { explanationBlocks } from '../components/Topology.js';
+import { TOPOLOGIES, getTopology } from '../topologies/index.js';
 import { canvasBounds } from '../phone/PhoneCanvas.js';
 import { phonePing } from '../phone/phonePing.js';
 import { pickHostAddress, solveLab } from '../phone/solveLab.js';
@@ -41,6 +50,8 @@ const cases = MISSIONS.map((l) => [l.id, l] as const);
 
 const TIER0 = 'tier0-first-ping.learn';
 const TIER2 = 'tier2-static-route.learn';
+
+const shapes = TOPOLOGIES.map((t) => [t.id, t] as const);
 
 /** Fresh player, nothing banked, sitting on `labId` on the desktop. */
 function startOnDesktop(labId: string) {
@@ -349,6 +360,148 @@ describe('the tap-only canvas', () => {
     const b = canvasBounds({ devices: [], links: [] });
     expect(b.w).toBeGreaterThan(0);
     expect(b.h).toBeGreaterThan(0);
+  });
+});
+
+describe('Learn Topology on the phone', () => {
+  it('puts the shape on the canvas exactly as the registry ships it', () => {
+    startOnDesktop(TIER0);
+    s().enterTopologyMode();
+    s().loadTopology('ring');
+
+    expect(s().topologyId).toBe('ring');
+    // Not a copy, not a re-layout, not a re-addressing: the demo's own state.
+    expect(s().network).toEqual(getTopology('ring')!.initialState);
+    // And the phone adds no state of its own for it — the lab section's flags
+    // are clear, which is what keeps the two sections exclusive.
+    expect(s().phoneMode).toBe(false);
+    expect(s().phoneLabId).toBeNull();
+  });
+
+  it.each(shapes)('offers a ping on %s that the engine delivers', (_id, demo) => {
+    startOnDesktop(TIER0);
+    s().loadTopology(demo.id);
+
+    // No lab behind a demo, so the button takes the derived run.
+    const run = phonePing(null, s().network);
+    expect(run, 'no ping to offer').not.toBeNull();
+    const result = ping(s().network, run!.fromId, run!.toIp);
+    expect(result.success, `${run!.fromLabel} → ${run!.toIp}: ${result.reason}`).toBe(true);
+  });
+
+  it.each(shapes)('prints %s’s ping to the terminal and sends a packet', (_id, demo) => {
+    startOnDesktop(TIER0);
+    s().loadTopology(demo.id);
+
+    const run = phonePing(null, s().network)!;
+    useStore.setState({ terminalDeviceId: run.fromId });
+    s().runTerminal(`ping ${run.toIp}`);
+
+    expect(s().terminalLog.some((l) => l.text.includes(`ping ${run.toIp}`))).toBe(true);
+    expect(s().terminalLog.some((l) => l.cls === 'ok')).toBe(true);
+    expect(s().packet).not.toBeNull();
+    expect(s().packet!.success).toBe(true);
+    expect(s().packet!.path[0]).toBe(run.fromId);
+    expect(s().packet!.verify).toBe(false);
+  });
+
+  it.each(shapes)('cannot score anything from %s', (_id, demo) => {
+    startOnDesktop(TIER0);
+    s().loadTopology(demo.id);
+
+    const run = phonePing(null, s().network)!;
+    useStore.setState({ terminalDeviceId: run.fromId });
+    s().runTerminal(`ping ${run.toIp}`);
+    if (s().packet) s().packetArrived(s().packet!.id);
+
+    expect(s().xp).toBe(0);
+    expect(s().earnedBadges).toEqual([]);
+    expect(s().completedLabs).toEqual([]);
+    expect(s().justCompleted).toBeNull();
+    expect(s().verifyStatus).toBe('none');
+  });
+
+  it.each(shapes)('fits %s inside the tap-only canvas', (_id, demo) => {
+    const b = canvasBounds(demo.initialState);
+    for (const d of demo.initialState.devices) {
+      expect(d.x, `${d.label} left`).toBeGreaterThanOrEqual(b.x);
+      expect(d.y, `${d.label} top`).toBeGreaterThanOrEqual(b.y);
+      expect(d.x + NODE_W, `${d.label} right`).toBeLessThanOrEqual(b.x + b.w);
+      expect(d.y + BOX_H, `${d.label} bottom`).toBeLessThanOrEqual(b.y + b.h);
+    }
+  });
+
+  it.each(shapes)('has every explanation section to fold away for %s', (_id, demo) => {
+    // The disclosure renders whatever `explanationBlocks` returns — the
+    // desktop's own list — so what this pins is that each shape actually
+    // carries content for all of them.
+    const blocks = explanationBlocks(demo.explanation);
+    expect(blocks.map((b) => b.label)).toEqual([
+      'What it is',
+      'How data travels',
+      'Where it’s used today',
+      'Advantages',
+      'Drawbacks',
+      'Good to know',
+    ]);
+    for (const block of blocks) {
+      if (block.kind === 'prose') expect(block.text, block.label).toBeTruthy();
+      else expect(block.items.length, block.label).toBeGreaterThan(0);
+    }
+  });
+
+  it('goes back to the list without leaving a shape on the canvas', () => {
+    startOnDesktop(TIER0);
+    s().loadTopology('star');
+    s().backToTopologies();
+
+    expect(s().topologyMode).toBe(true);
+    expect(s().topologyId).toBeNull();
+    expect(s().network.devices).toEqual([]);
+  });
+
+  it('switching sections hands the canvas over, one way and back', () => {
+    startOnDesktop(TIER0);
+    s().loadPhoneLab(TIER2);
+    expect(s().phoneMode).toBe(true);
+
+    // → Learn Topology
+    s().enterTopologyMode();
+    expect(s().topologyMode).toBe(true);
+    expect(s().phoneMode).toBe(false);
+    expect(s().phoneLabId).toBeNull();
+
+    // → Labs. The toggle remembers which lab it was showing; the store cleared
+    // phoneLabId, so this is the component's job — what it must be able to do
+    // is reload any lab by id, with the topology flags dropped.
+    s().loadPhoneLab(TIER2);
+    expect(s().phoneMode).toBe(true);
+    expect(s().phoneLabId).toBe(TIER2);
+    expect(s().topologyMode).toBe(false);
+    expect(s().topologyId).toBeNull();
+  });
+
+  it('hands a loaded shape straight to the desktop on the way out', () => {
+    startOnDesktop(TIER0);
+    s().loadTopology('tree');
+    s().exitPhoneMode();
+
+    // The desktop renders a demo from exactly this state, so leaving the phone
+    // must not reload a lab over the top of it.
+    expect(s().phoneMode).toBe(false);
+    expect(s().topologyMode).toBe(true);
+    expect(s().topologyId).toBe('tree');
+    expect(s().network).toEqual(getTopology('tree')!.initialState);
+  });
+
+  it('still restores the player’s lab when the phone was showing one', () => {
+    startOnDesktop(TIER2);
+    s().loadPhoneLab(TIER0);
+    s().exitPhoneMode();
+
+    expect(s().topologyMode).toBe(false);
+    expect(s().activeLabId).toBe(TIER2);
+    expect(s().network).toEqual(ALL_LABS.find((l) => l.id === TIER2)!.initialState);
   });
 });
 

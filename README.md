@@ -8,10 +8,12 @@ GeekedNet is built on a single simulation engine, with every lesson authored as 
 
 Beginner and advanced labs are the same engine. The difference is how much config surface is unlocked.
 
-Below 900px the screen gets a stacked, read-only layout instead of the builder: the lab arrives already
-built and addressed, and a single button sends a packet across it. It is driven by the same engine and the
-same lab files — the solved state is derived from each lab's own objectives, so no topology is authored
-twice. Above that width the desktop stage is untouched.
+Below 900px the screen gets a stacked, read-only layout instead of the builder, in two sections. Under
+**Labs** the lab arrives already built and addressed; under **Learn Topology** the seven shapes are listed
+down the page, and tapping one loads it. Either way a single button sends a packet across what is on
+screen, tapping a device shows its config, and nothing is editable or scored. It is driven by the same
+engine, the same lab files and the same topology registry — a lab's solved state is derived from its own
+objectives — so no topology is authored twice. Above that width the desktop stage is untouched.
 
 ## Running it locally
 
@@ -33,7 +35,8 @@ Then open http://localhost:5173.
 | `npm run preview` | Serve the production build locally |
 | `npm test` | Run the full test suite once |
 | `npm run test:watch` | Run tests in watch mode |
-| `npm run typecheck` | Type-check without emitting |
+| `npm run typecheck` | Type-check the engine (no emit) |
+| `npm run typecheck:app` | Type-check the engine *and* the React UI under `src/` |
 
 ## Layout
 
