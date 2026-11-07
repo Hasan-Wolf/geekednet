@@ -3,6 +3,7 @@ import { PALETTE } from '../devices.js';
 import { createLabScene, type LabScene } from '../labScene.js';
 import { hasWorkstationMonitor } from '../labModels.js';
 import { useStore } from '../store.js';
+import { usePacketInFlight } from '../usePacketInFlight.js';
 import { Canvas } from './Canvas.js';
 import { CompanionBot } from './CompanionBot.js';
 import { MonitorConsole } from './MonitorConsole.js';
@@ -42,11 +43,7 @@ function LabCanvas({ onFallback }: { onFallback: () => void }) {
   const selected = useStore(s => s.selectedDeviceId);
   const connectMode = useStore(s => s.connectMode);
   const connectSource = useStore(s => s.connectSourceId);
-  const packet = useStore(s => s.packet);
-  const packetsLanded = useStore(s => s.packetsLanded);
-  const flight = useRef({ id: packet?.id, landed: packetsLanded });
-  if (flight.current.id !== packet?.id) flight.current = { id: packet?.id, landed: packetsLanded };
-  const sending = !!packet && packetsLanded === flight.current.landed;
+  const sending = usePacketInFlight();
   const result = useStore(s => s.lastResult);
   const lastDeleted = useStore(s => s.lastDeleted);
   const winOpen = useStore(s => !!s.justCompleted);
@@ -56,7 +53,7 @@ function LabCanvas({ onFallback }: { onFallback: () => void }) {
 
   useEffect(() => {
     try {
-      scene.current = createLabScene(host.current!, labels.current!, () => setError(true), setConsoleId);
+      scene.current = createLabScene(host.current!, labels.current!, { onError: () => setError(true), onOpenConsole: setConsoleId });
       setReady(true);
     } catch (err) { console.warn('3D lab could not start:', err); setError(true); }
     return () => { scene.current?.dispose(); scene.current = null; };

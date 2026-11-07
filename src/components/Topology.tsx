@@ -26,8 +26,11 @@ const STATUS_TEXT: Record<TopologyStatus, string> = {
 };
 
 /** The badge. `long` prints the sentence instead of the one word, and drops the
- *  clipped mono treatment that would make a sentence shout. */
-function StatusBadge({ demo, long = false }: { demo: TopologyDemo; long?: boolean }) {
+ *  clipped mono treatment that would make a sentence shout.
+ *
+ *  Exported for the phone layout's own list and header: how current a shape is
+ *  is the first thing a student needs, and it must read the same on both. */
+export function StatusBadge({ demo, long = false }: { demo: TopologyDemo; long?: boolean }) {
   return (
     <span className={`topo-badge ${demo.status}${long ? ' long' : ''}`} title={demo.statusLabel}>
       {long ? demo.statusLabel : STATUS_TEXT[demo.status]}
@@ -55,8 +58,12 @@ const HOST_KINDS: ReadonlySet<Device['kind']> = new Set<Device['kind']>(['pc', '
  * Drawn from the demo's `initialState` rather than from a picture someone drew,
  * so it cannot disagree with what loading the bar actually puts on the canvas —
  * and a new topology gets its thumbnail for free.
+ *
+ * Exported because the phone lists the same shapes down the page instead of
+ * across it, and the thumbnail is the part of a row that says which shape it is.
+ * The drawing is viewBox-scaled, so the row only has to choose a width.
  */
-function TopologyThumb({ net }: { net: NetworkState }) {
+export function TopologyThumb({ net }: { net: NetworkState }) {
   const centres = new Map<string, { x: number; y: number }>(
     net.devices.map((d) => [d.id, { x: d.x + NODE_W / 2, y: d.y + BOX_H / 2 }]),
   );
@@ -243,7 +250,7 @@ export function TopologyPanel() {
 
 // ---- Pip's explanation ---------------------------------------------------
 
-type Block =
+export type Block =
   | { kind: 'prose'; label: string; text: string }
   /** `tone` only marks the bullets — cyan for what a shape buys you, magenta for
    *  what it costs — so the two lists are tellable apart at a glance. */
@@ -255,8 +262,13 @@ type Block =
  * Rendered from the separate fields rather than as one blob: each section gets
  * its own heading and its own short paragraph, and the two lists stay lists, so
  * the whole thing is skimmable in a panel the size of Pip's drawer.
+ *
+ * Exported because the phone shows the same explanation in a disclosure under
+ * its canvas. Which fields there are, what each is called and what order they
+ * read in is a content decision, and it is made here once — the phone chooses
+ * only the container it puts them in.
  */
-function blocks(e: TopologyExplanation): Block[] {
+export function explanationBlocks(e: TopologyExplanation): Block[] {
   return [
     { kind: 'prose', label: 'What it is', text: e.whatItIs },
     { kind: 'prose', label: 'How data travels', text: e.howDataTravels },
@@ -275,7 +287,7 @@ export function TopologyExplainer({ demo }: { demo: TopologyDemo }) {
         <div className="topo-explain-name">{demo.name}</div>
         <StatusBadge demo={demo} long />
       </div>
-      {blocks(demo.explanation).map((block) => (
+      {explanationBlocks(demo.explanation).map((block) => (
         <section
           className={`topo-explain${block.kind === 'list' ? ` ${block.tone}` : ''}`}
           key={block.label}

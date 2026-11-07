@@ -8,6 +8,15 @@ GeekedNet is built on a single simulation engine, with every lesson authored as 
 
 Beginner and advanced labs are the same engine. The difference is how much config surface is unlocked.
 
+Below 900px the screen gets a stacked, read-only layout instead of the builder, in two sections. Under
+**Labs** the lab arrives already built and addressed; under **Learn Topology** the seven shapes are listed
+down the page, and tapping one loads it. Either way a single button sends a packet across what is on
+screen, tapping a device shows its config, and nothing is editable or scored. It is driven by the same
+engine, the same lab files and the same topology registry — a lab's solved state is derived from its own
+objectives, so no topology is authored twice. The phone opens a compact 3D bench with a 2D map
+option. At wider sizes, the desktop workbench supports building and editing networks, and clicking
+a computer's screen opens its command prompt and network settings.
+
 ## Running it locally
 
 Requires [Node.js](https://nodejs.org) 18 or newer (developed on 24).
@@ -92,6 +101,7 @@ src/         React UI that consumes the engine's public API
   terminalEngine.ts  the in-lab CLI
   replay.ts        runs a replay through the store's own actions
   topologies/      topology reference data
+  phone/           compact 3D bench and read-only phone layout below 900px
 scripts/     Developer tooling
   record.ts        films a replay with Playwright
 ```

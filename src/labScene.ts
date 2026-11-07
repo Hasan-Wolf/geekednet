@@ -154,20 +154,26 @@ export function cableCurve(a: Device, b: Device, link: Link) {
 export function createLabScene(
   host: HTMLElement,
   labels: HTMLElement,
-  onError: () => void,
-  onOpenConsole: (deviceId: string) => void,
+  { onError, onOpenConsole, readOnly = false }: {
+    onError: () => void;
+    onOpenConsole?: (deviceId: string) => void;
+    readOnly?: boolean;
+  },
 ): LabScene {
-  const renderer = new T.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.65));
+  const renderer = new T.WebGLRenderer({ antialias: true, powerPreference: readOnly ? 'low-power' : 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, readOnly ? 1.25 : 1.65));
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
   renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.23;
   renderer.outputColorSpace = T.SRGBColorSpace;
-  renderer.domElement.setAttribute('aria-label', 'Interactive 3D networking workbench. Click a PC screen to open its console. Drag empty space to rotate, or click it to zoom out.');
+  renderer.domElement.setAttribute('aria-label', readOnly
+    ? '3D network bench. Tap a device to see its settings.'
+    : 'Interactive 3D networking workbench. Click a PC screen to open its console. Drag empty space to rotate, or click it to zoom out.');
   renderer.domElement.setAttribute('role', 'img');
   host.appendChild(renderer.domElement);
   const scene = new T.Scene(); scene.background = new T.Color(0x0c1421); scene.fog = new T.Fog(0x0c1421, 38, 90);
   const camera = new T.PerspectiveCamera(39, 1, 0.1, 90);
   const controls = new OrbitControls(camera, renderer.domElement);
+  if (readOnly) renderer.domElement.style.touchAction = 'pan-y';
   controls.enableDamping = true; controls.dampingFactor = 0.08; controls.minDistance = 2.5; controls.maxDistance = 70;
   controls.rotateSpeed = 0.65; controls.zoomSpeed = 0.85; controls.panSpeed = 0.75;
   controls.maxPolarAngle = Math.PI / 2.7; controls.minPolarAngle = 0.08; controls.enablePan = true;
@@ -177,32 +183,45 @@ export function createLabScene(
   room.dispose(); pmrem.dispose();
   scene.add(new T.HemisphereLight(0xc7e1f5, 0x293146, 1.15));
   const key = new T.DirectionalLight(0xd7e8f7, 4.4); key.position.set(-4, 9, 5); key.castShadow = true;
-  key.shadow.mapSize.set(2048, 2048); key.shadow.camera.left = -12; key.shadow.camera.right = 12; key.shadow.camera.top = 10; key.shadow.camera.bottom = -9; key.shadow.bias = -0.0004; key.shadow.normalBias = 0.025; scene.add(key);
+  key.shadow.mapSize.setScalar(readOnly ? 1024 : 2048); key.shadow.camera.left = -12; key.shadow.camera.right = 12; key.shadow.camera.top = 10; key.shadow.camera.bottom = -9; key.shadow.bias = -0.0004; key.shadow.normalBias = 0.025; scene.add(key);
   const rim = new T.PointLight(0x1d92b7, 65, 22); rim.position.set(-6, 3, -2); scene.add(rim);
   const greenRim = new T.PointLight(0x258a69, 55, 24); greenRim.position.set(6, 4, -4); scene.add(greenRim);
   const background = makeRoom(scene);
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let quiet = reducedMotion;
   const director = new LabCameraDirector(camera, controls, reducedMotion);
-  const renderTarget = new T.WebGLRenderTarget(1, 1, { type: T.HalfFloatType, samples: Math.min(4, renderer.capabilities.maxSamples) });
-  const composer = new EffectComposer(renderer, renderTarget);
-  composer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-  const bloom = new UnrealBloomPass(new T.Vector2(1, 1), 0.32, 0.42, 1.1);
-  composer.addPass(new RenderPass(scene, camera)); composer.addPass(bloom); composer.addPass(new OutputPass());
+  const composer = readOnly ? null : new EffectComposer(renderer, new T.WebGLRenderTarget(1, 1, {
+    type: T.HalfFloatType, samples: Math.min(4, renderer.capabilities.maxSamples),
+  }));
+  if (composer) {
+    composer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    const bloom = new UnrealBloomPass(new T.Vector2(1, 1), 0.32, 0.42, 1.1);
+    composer.addPass(new RenderPass(scene, camera)); composer.addPass(bloom); composer.addPass(new OutputPass());
+  }
   const deviceRoot = new T.Group(); const cables = new T.Group(); const packetRoot = new T.Group();
   scene.add(deviceRoot, cables, packetRoot);
   const deviceMap = new Map<string, { group: T.Group; signature: string; label: HTMLButtonElement }>();
   const liveCablePaths = new Map<string, { curve: T.CatmullRomCurve3; length: number }>();
   let disposed = false; let packetId = -1; let packetStart = 0; let packetFinished = false;
-  const home = () => director.reset(useStore.getState().network.devices);
+  let needsRender = true;
+  const home = (animate = !readOnly) => {
+    director.reset(useStore.getState().network.devices, animate);
+    if (readOnly) controls.enabled = false;
+    needsRender = true;
+  };
   const focus = (id: string) => director.focus(id, useStore.getState().network.devices);
   const select = (id: string) => {
     const state = useStore.getState();
+    if (readOnly) {
+      state.selectDevice(state.selectedDeviceId === id ? null : id);
+      return;
+    }
     if (state.connectMode) { state.clickDeviceForConnect(id); return; }
     if (state.selectedDeviceId === id) focus(id);
     else state.selectDevice(id);
   };
   function updateNetwork(net: NetworkState) {
+    needsRender = true;
     const current = useStore.getState();
     for (const [id, item] of deviceMap) if (!net.devices.some(d => d.id === id)) {
       deviceRoot.remove(item.group); disposeObject(item.group); item.label.remove(); deviceMap.delete(id);
@@ -219,6 +238,7 @@ export function createLabScene(
         label.dataset.kind = d.kind;
         label.setAttribute('aria-label', `Select ${d.label}`); label.dataset.deviceId = d.id;
         label.title = `${d.label} — click to configure`;
+        if (readOnly) label.tabIndex = -1; // The phone provides a separate row of accessible device buttons.
         label.onclick = e => { e.stopPropagation(); select(d.id); };
         if (!item) labels.appendChild(label);
         item = { group, signature, label }; deviceMap.set(d.id, item);
@@ -265,8 +285,8 @@ export function createLabScene(
   updateNetwork(useStore.getState().network);
   const unsubscribe = useStore.subscribe((state, previous) => {
     if (state.network !== previous.network || state.selectedDeviceId !== previous.selectedDeviceId || state.connectSourceId !== previous.connectSourceId) updateNetwork(state.network);
-    if (state.activeLabId !== previous.activeLabId || state.topologyId !== previous.topologyId) home();
-    else if (state.selectedDeviceId !== previous.selectedDeviceId) {
+    if (state.activeLabId !== previous.activeLabId || state.topologyId !== previous.topologyId || state.phoneLabId !== previous.phoneLabId) home();
+    else if (!readOnly && state.selectedDeviceId !== previous.selectedDeviceId) {
       if (state.selectedDeviceId && !state.connectMode) focus(state.selectedDeviceId);
       else if (!state.selectedDeviceId) home();
     }
@@ -294,6 +314,7 @@ export function createLabScene(
   const down = (e: PointerEvent) => {
     emptyClick = false; benchClick.cancel();
     if (e.button !== 0) return;
+    if (readOnly) { benchClick.begin(e.clientX, e.clientY, e.pointerId); return; }
     const hit = pick(e.clientX, e.clientY);
     if (!hit) { benchClick.begin(e.clientX, e.clientY, e.pointerId); director.cancel(); return; }
     const d = useStore.getState().network.devices.find(d => d.id === hit.deviceId);
@@ -304,6 +325,7 @@ export function createLabScene(
   };
   const move = (e: PointerEvent) => {
     benchClick.move(e.clientX, e.clientY);
+    if (readOnly) return;
     if (!drag) {
       const hit = pick(e.clientX, e.clientY);
       renderer.domElement.style.cursor = hit?.screen || hit?.linkId ? 'pointer' : 'grab';
@@ -318,12 +340,20 @@ export function createLabScene(
     renderer.domElement.style.cursor = 'grabbing';
   };
   const up = (e: PointerEvent) => {
+    if (readOnly) {
+      benchClick.move(e.clientX, e.clientY);
+      if (benchClick.finish(e.pointerId)) {
+        const id = pick(e.clientX, e.clientY)?.deviceId;
+        if (id) select(id);
+      }
+      return;
+    }
     if (!drag) { benchClick.move(e.clientX, e.clientY); emptyClick = benchClick.finish(e.pointerId); return; }
     const state = useStore.getState();
     if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) <= 5) {
       if (drag.id) {
         select(drag.id);
-        if (drag.screen && !state.connectMode) onOpenConsole(drag.id);
+        if (drag.screen && !state.connectMode) onOpenConsole?.(drag.id);
       }
       else if (drag.linkId) state.removeLink(drag.linkId);
     }
@@ -336,7 +366,7 @@ export function createLabScene(
     const state = useStore.getState();
     if (state.selectedDeviceId) state.selectDevice(null); else home();
   };
-  const cancel = () => { drag = null; benchClick.cancel(); emptyClick = false; controls.enabled = true; };
+  const cancel = () => { drag = null; benchClick.cancel(); emptyClick = false; controls.enabled = !readOnly; };
   const lostContext = (e: Event) => { e.preventDefault(); onError(); };
   renderer.domElement.addEventListener('pointerdown', down, true); renderer.domElement.addEventListener('pointermove', move);
   renderer.domElement.addEventListener('pointerup', up, true); renderer.domElement.addEventListener('pointercancel', cancel); renderer.domElement.addEventListener('webglcontextlost', lostContext);
@@ -344,11 +374,13 @@ export function createLabScene(
   const observer = new ResizeObserver(() => {
     const width = host.clientWidth; const height = host.clientHeight; if (!width || !height) return;
     const previousAspect = camera.aspect;
-    camera.aspect = width / height; camera.updateProjectionMatrix(); renderer.setSize(width, height); composer.setSize(width, height);
-    if (Math.abs(camera.aspect - previousAspect) > 0.15) director.reframe(useStore.getState().network.devices);
+    camera.aspect = width / height; camera.updateProjectionMatrix(); renderer.setSize(width, height); composer?.setSize(width, height);
+    needsRender = true;
+    if (readOnly) home();
+    else if (Math.abs(camera.aspect - previousAspect) > 0.15) director.reframe(useStore.getState().network.devices);
   }); observer.observe(host);
-  camera.aspect = (host.clientWidth || 800) / (host.clientHeight || 700); director.reset(useStore.getState().network.devices, false);
-  if (useStore.getState().selectedDeviceId) focus(useStore.getState().selectedDeviceId!);
+  camera.aspect = (host.clientWidth || 800) / (host.clientHeight || 700); home(false);
+  if (!readOnly && useStore.getState().selectedDeviceId) focus(useStore.getState().selectedDeviceId!);
   const packetColors = [0x47f29c, 0x42bfff];
   const packetMaterials = packetColors.map(color => new T.MeshBasicMaterial({ color: new T.Color(color).multiplyScalar(1.2) }));
   const pulseGeometry = new T.SphereGeometry(0.024, 12, 10);
@@ -358,10 +390,16 @@ export function createLabScene(
   const startTime = performance.now();
   let idleStart = startTime;
   let frame = 0;
+  let lastFrame = -Infinity;
   function animate(now: number) {
     if (disposed) return;
-    director.tick(now); controls.update(); const state = useStore.getState();
-    background.update(now - startTime, state.network, quiet || reducedMotion, camera.position);
+    frame = requestAnimationFrame(animate);
+    const state = useStore.getState();
+    if (readOnly && (now - lastFrame < 30 || (!needsRender && !state.packet && !state.ambientPath))) return;
+    lastFrame = now;
+    needsRender = false;
+    director.tick(now); controls.update();
+    background.update(now - startTime, state.network, readOnly || quiet || reducedMotion, camera.position);
     const packet = state.packet;
     if (packet && packet.id !== packetId) {
       packetId = packet.id; packetStart = now; packetFinished = false;
@@ -385,7 +423,7 @@ export function createLabScene(
     });
     const loop = !packet || (packetFinished && packet.success);
     const elapsed = loop ? now - idleStart : now - packetStart;
-    const pulses = packetPulses(elapsed, Math.max(0, ...runs.map(run => run.total)), loop);
+    const pulses = readOnly && reducedMotion ? [] : packetPulses(elapsed, Math.max(0, ...runs.map(run => run.total)), loop);
     runs.forEach(({ segments, total }, runIndex) => {
       if (total <= 0) return;
       for (const pulse of pulses) {
@@ -409,7 +447,7 @@ export function createLabScene(
               const t = T.MathUtils.clamp(distance / length, 0, 1);
               part.position.copy(curve.getPointAt(reverse ? 1 - t : t));
               if (index === 0) pixelWorld = 2 * camera.position.distanceTo(part.position) * Math.tan(camera.fov * Math.PI / 360) / Math.max(1, host.clientHeight);
-              const scale = T.MathUtils.clamp(pixelWorld * PACKET_DIAMETER_PX / 0.048, 0.25, 16);
+              const scale = T.MathUtils.clamp(pixelWorld * (readOnly ? 6.5 : PACKET_DIAMETER_PX) / 0.048, 0.25, 16);
               if (index === 0) part.scale.setScalar(scale);
               else part.scale.setScalar((0.019 - (index - 1) * 0.0035) * scale);
               break;
@@ -424,14 +462,16 @@ export function createLabScene(
       const device = state.network.devices.find(d => d.id === id); if (!device) continue;
       const p = world(device).add(new T.Vector3(0, 0.24, 1.8)); p.project(camera);
       const labelY = (-p.y * 0.5 + 0.5) * host.clientHeight;
-      item.label.style.transform = `translate(-50%, -50%) translate(${(p.x * 0.5 + 0.5) * host.clientWidth}px, ${state.selectedDeviceId === id ? Math.min(host.clientHeight - 116, labelY) : labelY}px)`;
+      const y = !readOnly && state.selectedDeviceId === id ? Math.min(host.clientHeight - 116, labelY) : labelY;
+      item.label.style.transform = `translate(-50%, -50%) translate(${(p.x * 0.5 + 0.5) * host.clientWidth}px, ${y}px)`;
       item.label.style.visibility = p.z > 1 || p.z < -1 ? 'hidden' : 'visible';
     }
-    composer.render(); frame = requestAnimationFrame(animate);
+    if (composer) composer.render();
+    else renderer.render(scene, camera);
   }
   frame = requestAnimationFrame(animate);
   return {
-    resetView: home,
+    resetView: () => home(),
     setView(view) { director.setView(view, useStore.getState().network.devices); },
     setBright(bright) { renderer.toneMappingExposure = bright ? 1.65 : 1.23; key.intensity = bright ? 5.8 : 4.4; },
     setQuiet(value) { quiet = value; },
@@ -442,7 +482,7 @@ export function createLabScene(
       disposed = true; cancelAnimationFrame(frame); unsubscribe(); observer.disconnect(); controls.dispose();
       renderer.domElement.removeEventListener('pointerdown', down, true); renderer.domElement.removeEventListener('pointermove', move); renderer.domElement.removeEventListener('pointerup', up, true); renderer.domElement.removeEventListener('pointercancel', cancel); renderer.domElement.removeEventListener('webglcontextlost', lostContext);
       renderer.domElement.removeEventListener('click', click);
-      labels.replaceChildren(); particleGeometry.dispose(); pulseGeometry.dispose(); packetMaterials.forEach(mat => mat.dispose()); tailMaterials.flat().forEach(mat => mat.dispose()); composer.passes.forEach(pass => pass.dispose()); composer.dispose(); disposeObject(scene); environment.dispose(); renderer.dispose(); renderer.forceContextLoss(); renderer.domElement.remove();
+      labels.replaceChildren(); particleGeometry.dispose(); pulseGeometry.dispose(); packetMaterials.forEach(mat => mat.dispose()); tailMaterials.flat().forEach(mat => mat.dispose()); composer?.passes.forEach(pass => pass.dispose()); composer?.dispose(); disposeObject(scene); environment.dispose(); renderer.dispose(); renderer.forceContextLoss(); renderer.domElement.remove();
     },
   };
 }

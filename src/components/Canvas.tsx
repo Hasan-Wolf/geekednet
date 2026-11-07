@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { deviceLinkStatus, type Device, type NetworkState } from '../../engine/index.js';
 import { blockedAt, cableRoute, packetCableRoutes } from '../cableRoute.js';
 import { deviceIcon } from '../devices.js';
+import { PACKET_FLIGHT_MS, PACKET_LOOP_MS, PACKET_PULSE_COUNT, PACKET_STAGGER_MS } from '../labPackets.js';
 import type { TopologyDemo } from '../topologies/index.js';
 import { useStore, type PacketAnim } from '../store.js';
 import { CompanionBot } from './CompanionBot.js';
@@ -569,11 +570,13 @@ function PacketHead({
   head,
   r,
   className,
+  blue = false,
 }: {
   gradId: string;
   head: Head;
   r: number;
   className: string;
+  blue?: boolean;
 }) {
   const tail = head.trail?.[0];
   return (
@@ -593,9 +596,9 @@ function PacketHead({
               x2={head.pos.x}
               y2={head.pos.y}
             >
-              <stop offset="0%" stopColor="#22c55e" stopOpacity="0" />
-              <stop offset="65%" stopColor="#4aee97" stopOpacity="0.7" />
-              <stop offset="100%" stopColor="#b4ffd0" stopOpacity="1" />
+              <stop offset="0%" stopColor={blue ? '#379be4' : '#22c55e'} stopOpacity="0" />
+              <stop offset="65%" stopColor={blue ? '#55c8ff' : '#4aee97'} stopOpacity="0.7" />
+              <stop offset="100%" stopColor={blue ? '#b3ebff' : '#b4ffd0'} stopOpacity="1" />
             </linearGradient>
           </defs>
           <polyline
@@ -605,7 +608,7 @@ function PacketHead({
           />
         </>
       )}
-      <circle cx={head.pos.x} cy={head.pos.y} r={r} className={className} />
+      <circle cx={head.pos.x} cy={head.pos.y} r={r} className={blue ? `${className} packet-blue` : className} />
     </g>
   );
 }
@@ -643,15 +646,31 @@ function BlockedMarker({ net, deviceId }: { net: NetworkState; deviceId: string 
  * correctly: while the routes share cables the heads sit exactly on top of each
  * other — one frame on one wire — and they separate at the precise device where
  * the cabling itself separates. A short branch simply finishes first.
+ *
+ * Exported because the phone layout draws packets on its own tap-only SVG and
+ * must draw them with *this* animator: it is the one that walks the real cable
+ * routes, and a second copy of it would be a second answer to "where does a
+ * packet actually go".
  */
-function Packet({
+export function Packet({
   net,
   packet,
   onArrive,
+  sizeScale = 1,
+  signals = false,
 }: {
   net: NetworkState;
   packet: PacketAnim;
   onArrive: (packetId: number) => void;
+  /**
+   * Multiplier on the head and its streak — the glowing furniture, never the
+   * route. The phone's SVG shrinks a desktop-sized layout to fit a handset, and
+   * a 5.5px dot scaled with it stops being visible; this puts the size back
+   * without moving the packet off the cable it is on. Defaults to 1, which is
+   * the desktop canvas exactly as before.
+   */
+  sizeScale?: number;
+  signals?: boolean;
 }) {
   const [heads, setHeads] = useState<Head[]>([]);
   // Read live rather than depended on: a device dragged mid-flight re-routes the
@@ -659,6 +678,7 @@ function Packet({
   // relaunching it from the start.
   const netRef = useRef(net);
   netRef.current = net;
+  const vivid = signals && packet.success;
 
   useEffect(() => {
     // Re-derived every frame from the live network, so a drag re-routes the
@@ -683,10 +703,10 @@ function Packet({
     // speed that implies — so branches sharing cable stay superimposed and part
     // company exactly where the cabling does.
     const longest = Math.max(...initial.map((g) => g.total));
-    const flight = packetDuration(longest, packet.verify);
+    const flight = vivid ? PACKET_FLIGHT_MS : packetDuration(longest, packet.verify);
     const speed = longest / flight; // px per ms, shared by every head
-    const count = packet.verify ? VERIFY_PACKETS : 1;
-    const stagger = packet.verify ? VERIFY_STAGGER : 0;
+    const count = vivid ? PACKET_PULSE_COUNT : packet.verify ? VERIFY_PACKETS : 1;
+    const stagger = vivid ? PACKET_STAGGER_MS : packet.verify ? VERIFY_STAGGER : 0;
     const duration = flight + (count - 1) * stagger;
     const start = performance.now();
     let raf = 0;
@@ -705,8 +725,9 @@ function Packet({
             const p = travelled / geo.total;
             // A verifying packet is spent once it lands; an ordinary one stays
             // put at the destination, the way it always has.
-            if (p >= 1 && packet.verify) continue;
-            next.push(headAt(geo, Math.min(1, p), packet.verify ? TRAIL_LEN : 0));
+            if (p >= 1 && (packet.verify || vivid)) continue;
+            const trail = vivid ? 16 : packet.verify ? TRAIL_LEN : 0;
+            next.push(headAt(geo, Math.min(1, p), trail * sizeScale));
           }
         }
         setHeads(next);
@@ -719,7 +740,7 @@ function Packet({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [packet.id, packet.verify, packet.path, packet.recipients, onArrive]);
+  }, [packet.id, packet.verify, packet.path, packet.recipients, onArrive, sizeScale, vivid]);
 
   const stoppedAt = blockedAt(packet.path, packet.success);
 
@@ -731,7 +752,8 @@ function Packet({
           key={i}
           gradId={`packet-streak-${packet.id}-${i}`}
           head={head}
-          r={packet.verify ? 7 : 5.5}
+          r={(packet.verify ? 7 : 5.5) * sizeScale}
+          blue={vivid && i % 2 === 1}
           className={`packet${packet.success ? '' : ' fail'}${packet.verify ? ' verify' : ''}`}
         />
       ))}
@@ -780,8 +802,22 @@ function useReducedMotion(): boolean {
  * ambience, not feedback. It stops when the store drops `ambientPath` (the bar
  * dismissed, or the next lab loaded), pauses while the tab is hidden, and never
  * starts at all under `prefers-reduced-motion`.
+ *
+ * Exported alongside {@link Packet}: on the phone it is what explains where a
+ * landed packet went, and it has to trace the same cables.
  */
-function AmbientLink({ net, path }: { net: NetworkState; path: string[] }) {
+export function AmbientLink({
+  net,
+  path,
+  sizeScale = 1,
+  signals = false,
+}: {
+  net: NetworkState;
+  path: string[];
+  /** See {@link Packet}'s `sizeScale`. */
+  sizeScale?: number;
+  signals?: boolean;
+}) {
   const [dots, setDots] = useState<Head[]>([]);
   const reduced = useReducedMotion();
   // Same trick as Packet: the loop reads the live network every frame instead of
@@ -807,10 +843,11 @@ function AmbientLink({ net, path }: { net: NetworkState; path: string[] }) {
       if (geo && geo.total > 0) {
         // Advanced by elapsed time rather than wall clock, so a pause resumes
         // where it left off instead of jumping.
-        phase.current = (phase.current + (now - last) / ambientLapMs(geo.total)) % 1;
+        phase.current = (phase.current + (now - last) / (signals ? PACKET_LOOP_MS : ambientLapMs(geo.total))) % 1;
+        const count = signals ? PACKET_PULSE_COUNT : AMBIENT_DOTS;
         setDots(
-          Array.from({ length: AMBIENT_DOTS }, (_, i) =>
-            headAt(geo, (phase.current + i / AMBIENT_DOTS) % 1, AMBIENT_TRAIL_LEN),
+          Array.from({ length: count }, (_, i) =>
+            headAt(geo, (phase.current + i / count) % 1, (signals ? 16 : AMBIENT_TRAIL_LEN) * sizeScale),
           ),
         );
       } else {
@@ -837,12 +874,19 @@ function AmbientLink({ net, path }: { net: NetworkState; path: string[] }) {
       pause();
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [path, reduced]);
+  }, [path, reduced, sizeScale, signals]);
 
   return (
     <g className="ambient-link">
       {dots.map((head, i) => (
-        <PacketHead key={i} gradId={`ambient-streak-${i}`} head={head} r={4} className="packet ambient" />
+        <PacketHead
+          key={i}
+          gradId={`ambient-streak-${i}`}
+          head={head}
+          r={(signals ? 5.5 : 4) * sizeScale}
+          blue={signals && i % 2 === 1}
+          className="packet ambient"
+        />
       ))}
     </g>
   );
