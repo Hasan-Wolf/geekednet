@@ -32,6 +32,7 @@
  */
 
 import type { Device, Interface, Link, NetworkState, SimResult } from './types.js';
+import { isEndHost as isEndHostKind } from './deviceConfig.js';
 import { LIMITED_BROADCAST, addressRole, inNetwork, sameSubnet } from './ip.js';
 
 // --- Lookups ---------------------------------------------------------------
@@ -309,11 +310,11 @@ export function l2Broadcast(
   };
 }
 
-/** End hosts — the devices whose subnet mask defines "who is local". */
-const END_HOST_KINDS: ReadonlySet<Device['kind']> = new Set(['pc', 'laptop', 'server']);
-
+/** End hosts — the devices whose subnet mask defines "who is local". The kinds
+ *  themselves live in deviceConfig.ts, which is also what the config panel and
+ *  replay validation read, so there is one list rather than three. */
 function isEndHost(device: Device): boolean {
-  return END_HOST_KINDS.has(device.kind);
+  return isEndHostKind(device.kind);
 }
 
 /**

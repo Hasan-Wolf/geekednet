@@ -14,6 +14,7 @@
  */
 
 import { ipToInt, maskToPrefix } from './ip.js';
+import { describe, isNonEmptyString, isRecord } from './schema.js';
 import type { Lab, Predicate } from './types.js';
 
 /** Thrown when lab content does not match the schema the engine evaluates. */
@@ -88,19 +89,6 @@ export function isPredicateType(type: unknown): type is PredicateType {
   return typeof type === 'string' && Object.prototype.hasOwnProperty.call(PREDICATE_SCHEMA, type);
 }
 
-/** Render a rejected value for an error message. */
-function describe(value: unknown): string {
-  if (value === null) return 'null';
-  if (typeof value === 'string') return JSON.stringify(value);
-  if (Array.isArray(value)) return 'an array';
-  if (typeof value === 'object') return 'an object';
-  return String(value);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 /**
  * Check one predicate. `where` locates it for the author ("tier2-static-route.learn
  * objective o1") and prefixes every message.
@@ -154,7 +142,7 @@ export function validatePredicate(predicate: unknown, where: string): void {
   for (const key of [...required, ...optional, ...exactlyOne]) {
     if (!(key in predicate)) continue;
     const value = predicate[key];
-    if (typeof value !== 'string' || value.trim() === '') {
+    if (!isNonEmptyString(value)) {
       const hint = value === null || value === undefined ? ' (omit the field instead)' : '';
       throw new LabSchemaError(
         `${at} field "${key}" must be a non-empty string, got ${describe(value)}${hint}`,
@@ -202,7 +190,7 @@ export function validatePredicate(predicate: unknown, where: string): void {
 }
 
 function requireString(value: unknown, where: string, field: string): string {
-  if (typeof value !== 'string' || value.trim() === '') {
+  if (!isNonEmptyString(value)) {
     throw new LabSchemaError(`${where}: ${field} must be a non-empty string, got ${describe(value)}`);
   }
   return value;

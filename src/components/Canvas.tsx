@@ -593,9 +593,9 @@ function PacketHead({
               x2={head.pos.x}
               y2={head.pos.y}
             >
-              <stop offset="0%" stopColor="#22d3ee" stopOpacity="0" />
-              <stop offset="65%" stopColor="#67e8f9" stopOpacity="0.7" />
-              <stop offset="100%" stopColor="#ffffff" stopOpacity="1" />
+              <stop offset="0%" stopColor="#22c55e" stopOpacity="0" />
+              <stop offset="65%" stopColor="#4aee97" stopOpacity="0.7" />
+              <stop offset="100%" stopColor="#b4ffd0" stopOpacity="1" />
             </linearGradient>
           </defs>
           <polyline

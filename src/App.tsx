@@ -11,8 +11,9 @@ import {
 } from 'react';
 import { useStore, tierPhase } from './store.js';
 import { useMissionProgress } from './progress.js';
+import { useReplay } from './replay.js';
 import { Palette } from './components/Palette.js';
-import { Canvas } from './components/Canvas.js';
+import { NetworkWorkspace } from './components/NetworkWorkspace.js';
 import { ConfigPanel } from './components/ConfigPanel.js';
 import { Objectives } from './components/Objectives.js';
 import { TopologyPanel } from './components/Topology.js';
@@ -301,6 +302,10 @@ export function App() {
   const topologyMode = useStore((s) => s.topologyMode);
   const enterTopologyMode = useStore((s) => s.enterTopologyMode);
 
+  // Replay mode (?lab=&replay=). Inert unless the URL asks for one, and mounted
+  // here because a replay needs the canvas on screen to animate onto.
+  useReplay();
+
   // While Learn Topology has the canvas, no lab is on it — so no phase tab is
   // the active one either, and the topology tab carries the active styling.
   const activePhase = topologyMode ? null : tierPhase(activeLab.tier);
@@ -432,7 +437,7 @@ export function App() {
         }
       >
         <Palette />
-        <Canvas />
+        <NetworkWorkspace />
         <div className="side" ref={sideRef}>
           <div
             className={`side-resizer${side.dragging ? ' dragging' : ''}`}

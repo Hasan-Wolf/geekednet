@@ -170,6 +170,16 @@ interface AppState {
 
   // animation / last result
   packet: PacketAnim | null;
+  /**
+   * How many packets have finished crossing the canvas this session.
+   *
+   * A monotonic count rather than a flag: anything waiting for a particular run
+   * to land reads the number first and waits for it to change, which cannot miss
+   * an arrival the way a boolean that is set and then cleared can. Replay mode
+   * paces itself on this (see src/replay.ts) so a recorded run follows the real
+   * animation instead of a duration someone guessed.
+   */
+  packetsLanded: number;
   lastResult: (SimResult & { target?: string }) | null;
   verifyStatus: VerifyStatus;
   /** The verified path, looped as an ambient "link alive" pulse under the win
@@ -196,10 +206,33 @@ interface AppState {
    * this is an "undo that mistake" affordance, not an edit history.
    */
   lastDeleted: DeletedDevice | null;
+  /**
+   * One objective called out in the list, or null for none.
+   *
+   * Set only by replay mode, which points at the objective a step is about to
+   * satisfy just before satisfying it. It is the one piece of a replay with no
+   * equivalent student gesture, and it adds a class to the list item the
+   * objectives panel already renders rather than rendering anything new.
+   */
+  highlightedObjectiveId: string | null;
+  /**
+   * A replay has the app (see src/replay.ts).
+   *
+   * A replay drives a real lab through the real actions, so it earns the XP and
+   * raises the win bar exactly as a student would — that is the point, the win
+   * bar is the thing being filmed. What it must not do is write any of that
+   * down: a replay is a demo, and opening one in your own browser should not
+   * finish a lab you never played. So rewards land in memory and {@link persist}
+   * becomes a no-op while this is set. One-way — a reload is how you leave it.
+   */
+  replayMode: boolean;
 
   // ---- actions ----
   loadLab: (id: string) => void;
   resetLab: () => void;
+  /** Hand the app to a replay: a clean slate in memory, every lab reachable, and
+   *  nothing written to storage from here on. */
+  enterReplayMode: () => void;
   /** Open Learn Topology on the bar list. */
   enterTopologyMode: () => void;
   /** Put a topology on the canvas, fully built and fully addressed. */
@@ -234,6 +267,8 @@ interface AppState {
   /** The canvas reporting that a packet finished its run. */
   packetArrived: (packetId: number) => void;
   dismissResult: () => void;
+  /** Call out one objective in the list, or clear the call-out with null. */
+  highlightObjective: (objectiveId: string | null) => void;
   dismissCompletion: () => void;
   setResetConfirm: (open: boolean) => void;
   /** Wipe every persisted reward and start the campaign over. Destructive —
@@ -281,6 +316,9 @@ export const useStore = create<AppState>((set, get) => {
 
   function persist(next: Partial<PersistedProgress>) {
     const s = get();
+    // A replay banks its lab in memory so the win bar rises for the camera, but
+    // it is a demo: it must not finish a lab in the player's saved progress.
+    if (s.replayMode) return;
     const data: PersistedProgress = {
       xp: next.xp ?? s.xp,
       earnedBadges: next.earnedBadges ?? s.earnedBadges,
@@ -420,6 +458,7 @@ export const useStore = create<AppState>((set, get) => {
       ambientPath: null,
       justCompleted: null,
       lastDeleted: null,
+      highlightedObjectiveId: null,
       objectiveResults: [] as ObjectiveResult[],
     };
   }
@@ -444,6 +483,7 @@ export const useStore = create<AppState>((set, get) => {
     commandHistory: [],
 
     packet: null,
+    packetsLanded: 0,
     lastResult: null,
     verifyStatus: 'none',
     ambientPath: null,
@@ -456,6 +496,8 @@ export const useStore = create<AppState>((set, get) => {
     justCompleted: null,
     resetConfirmOpen: false,
     lastDeleted: null,
+    highlightedObjectiveId: null,
+    replayMode: false,
 
     loadLab: (id) => {
       const lab = activeLab(get().labs, id);
@@ -484,6 +526,8 @@ export const useStore = create<AppState>((set, get) => {
         // The pieces belong to the canvas being left behind — restoring them
         // into a different lab would drop a stranger into the topology.
         lastDeleted: null,
+        // Points at an objective of the lab being left behind.
+        highlightedObjectiveId: null,
         objectiveResults: recompute(get().labs, lab.id, network, []),
       });
     },
@@ -503,7 +547,23 @@ export const useStore = create<AppState>((set, get) => {
         verifyStatus: 'none',
         ambientPath: null,
         lastDeleted: null,
+        highlightedObjectiveId: null,
         objectiveResults: recompute(s.labs, lab.id, network, s.commandHistory),
+      });
+    },
+
+    enterReplayMode: () => {
+      const s = get();
+      set({
+        replayMode: true,
+        // A fresh slate, in memory only: a replay of lab three must show lab
+        // three being finished, not "already complete" from a previous session.
+        ...defaultProgress(),
+        // …and every lab reachable. A tour that padlocks its own subject in the
+        // selector behind it is just noise on screen.
+        unlocked: s.labs.map((l) => l.id),
+        justCompleted: null,
+        highlightedObjectiveId: null,
       });
     },
 
@@ -864,6 +924,11 @@ export const useStore = create<AppState>((set, get) => {
     packetArrived: (packetId) => {
       const s = get();
       if (s.packet?.id !== packetId) return; // a newer run superseded this one
+      // Counted ahead of the branches below. They each do something different
+      // with the arrival — or nothing at all — but "a packet finished its trip"
+      // is the same fact in every lab, sandbox and demo, and it is the only
+      // honest thing for a caller to wait on.
+      set({ packetsLanded: s.packetsLanded + 1 });
       if (s.verifyStatus === 'verifying') {
         settleVerification(s.packet.path);
         return;
@@ -888,6 +953,7 @@ export const useStore = create<AppState>((set, get) => {
       }
       set({ lastResult: null, packet: null });
     },
+    highlightObjective: (objectiveId) => set({ highlightedObjectiveId: objectiveId }),
     // Dismissing the bar ends the moment entirely, ambient loop included.
     dismissCompletion: () => set({ justCompleted: null, ambientPath: null }),
     setResetConfirm: (open) => set({ resetConfirmOpen: open }),

@@ -8,21 +8,27 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "record": "node scripts/record.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "typecheck:app": "tsc --noEmit -p tsconfig.app.json"
+    "typecheck:app": "tsc --noEmit -p tsconfig.app.json",
+    "typecheck:scripts": "tsc --noEmit -p tsconfig.scripts.json"
   },
   "devDependencies": {
+    "@types/node": "^26.6.3",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
+    "@types/three": "^0.180.0",
     "@vitejs/plugin-react": "^4.7.0",
+    "playwright": "^1.63.0",
     "typescript": "^5.6.3",
     "vitest": "^2.1.8"
   },
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "three": "^0.180.0",
     "zustand": "^5.0.15"
   }
 }

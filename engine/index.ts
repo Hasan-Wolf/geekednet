@@ -7,8 +7,13 @@
 
 export * from './types.js';
 export * from './ip.js';
+export * from './deviceConfig.js';
 export * from './simulate.js';
 export * from './linkState.js';
 export * from './missionRunner.js';
 export * from './validate.js';
 export * from './labs/index.js';
+export * from './replay.js';
+export * from './replayGenerator.js';
+export * from './replayCaptions.js';
+export * from './replays/index.js';

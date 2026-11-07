@@ -27,3 +27,9 @@ Thumbs.db
 
 # Local working documents (design briefs, portfolio scratch) — kept off the public repo
 files/
+
+# Recorded replay clips (regenerate with `npm run record`)
+video/assets/
+
+# Private demo publication checkout (contains its own source repository)
+/sites/

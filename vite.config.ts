@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { configDefaults, defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 // The UI lives in /src and imports the pure engine from /engine directly (Vite
@@ -7,6 +7,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   root: '.',
   plugins: [react()],
-  server: { port: 5173, open: false },
+  server: { port: 5173, open: false, watch: { ignored: ['**/sites/**'] } },
   build: { outDir: 'dist' },
+  test: { exclude: [...configDefaults.exclude, 'sites/**'] },
 });

@@ -1158,6 +1158,36 @@ body.resizing-term * {
 .obj-item.done .obj-text {
   color: var(--text-muted);
 }
+/* Replay mode points at the objective a step is about to satisfy. Nothing a
+   student does sets this (see highlightedObjectiveId in the store) — it exists
+   so a recorded walkthrough reads as explaining itself rather than as config
+   changing on its own. */
+.obj-item.spotlit {
+  position: relative;
+  animation: obj-spotlight 1.1s ease-out;
+}
+.obj-item.spotlit .obj-text {
+  color: var(--brand-cyan-soft);
+}
+.obj-item.spotlit .obj-check {
+  border-color: var(--brand-cyan);
+  box-shadow: 0 0 12px var(--brand-cyan);
+}
+@keyframes obj-spotlight {
+  from {
+    transform: translateX(6px);
+    filter: brightness(1.6);
+  }
+  to {
+    transform: none;
+    filter: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .obj-item.spotlit {
+    animation: none;
+  }
+}
 .lab-complete {
   margin-top: 12px;
   padding: 10px 12px;

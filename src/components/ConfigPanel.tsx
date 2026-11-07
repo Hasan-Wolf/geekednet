@@ -3,7 +3,12 @@
  * routing table for routers, and a power toggle (grey → neon). Edits flow straight
  * into the working network via the store; objectives re-check on every keystroke.
  */
-import type { Device } from '../../engine/index.js';
+import {
+  hasDefaultGateway,
+  hasRoutingTable,
+  isAddressable,
+  type Device,
+} from '../../engine/index.js';
 import { useStore } from '../store.js';
 
 const IPV4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
@@ -13,8 +18,6 @@ function looksLikeIp(v: string | null | undefined): boolean {
   if (!m) return false;
   return m.slice(1).every((o) => Number(o) >= 0 && Number(o) <= 255);
 }
-
-const HOST_KINDS = new Set(['pc', 'laptop', 'server']);
 
 // The three columns of a static route, in order. Driven from data so the caption
 // and its input are emitted from one place and can never fall out of step.
@@ -48,8 +51,11 @@ function DeviceConfig({ device }: { device: Device }) {
   const removeRoute = useStore((s) => s.removeRoute);
   const removeDevice = useStore((s) => s.removeDevice);
 
-  const isHost = HOST_KINDS.has(device.kind);
-  const isRouter = device.kind === 'router';
+  // Asked of the engine rather than listed here: replay validation rejects a
+  // step that sets a field this panel would never have rendered, and the two
+  // have to be reading the same rule. See engine/deviceConfig.ts.
+  const isHost = hasDefaultGateway(device.kind);
+  const isRouter = hasRoutingTable(device.kind);
 
   return (
     <section className="panel">
@@ -77,7 +83,7 @@ function DeviceConfig({ device }: { device: Device }) {
       {device.interfaces.map((iface) => {
         const connected = !!iface.linkId;
         // A switch/hub just forwards frames — no L3 addressing to configure.
-        const addressable = device.kind !== 'switch' && device.kind !== 'hub';
+        const addressable = isAddressable(device.kind);
         return (
           <div className="iface-block" key={iface.id}>
             <div className="iface-name">

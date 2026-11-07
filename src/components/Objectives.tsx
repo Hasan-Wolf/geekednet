@@ -8,6 +8,9 @@ export function Objectives() {
   const lab = useStore((s) => s.labs.find((l) => l.id === labId)!);
   const results = useStore((s) => s.objectiveResults);
   const completed = useStore((s) => s.completedLabs.includes(labId));
+  // Set only by replay mode, which points at an objective just before the step
+  // that satisfies it. Always null for a student, so nothing changes for them.
+  const highlighted = useStore((s) => s.highlightedObjectiveId);
 
   return (
     <section className="panel">
@@ -19,7 +22,12 @@ export function Objectives() {
       ) : (
         <ul className="obj-list">
           {results.map((o) => (
-            <li key={o.id} className={`obj-item${o.complete ? ' done' : ''}`}>
+            <li
+              key={o.id}
+              className={`obj-item${o.complete ? ' done' : ''}${
+                o.id === highlighted ? ' spotlit' : ''
+              }`}
+            >
               <span className="obj-check">{o.complete ? '✓' : ''}</span>
               <span className="obj-text">{o.description}</span>
             </li>

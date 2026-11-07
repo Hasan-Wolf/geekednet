@@ -1,0 +1,54 @@
+{
+  "id": "tier2-static-route.walkthrough",
+  "labId": "tier2-static-route.learn",
+  "title": "Two Islands, One Bridge — solved",
+  "description": "Both missing static routes added, then the sign-off ping crossing all four devices: PC-Red → Router-Red → Router-Blue → PC-Blue.",
+  "steps": [
+    {
+      "type": "wait",
+      "ms": 1400,
+      "note": "Hold on the broken starting state: two networks, no route between them."
+    },
+    {
+      "type": "highlight",
+      "objectiveId": "o1",
+      "settleMs": 900
+    },
+    {
+      "type": "addRoute",
+      "deviceId": "r1",
+      "dst": "20.0.0.0",
+      "mask": "255.255.255.0",
+      "gateway": "172.16.0.2",
+      "settleMs": 1200,
+      "note": "Router-Red learns the way to the blue network, via its backbone neighbour."
+    },
+    {
+      "type": "highlight",
+      "objectiveId": "o2",
+      "settleMs": 900
+    },
+    {
+      "type": "addRoute",
+      "deviceId": "r2",
+      "dst": "10.0.0.0",
+      "mask": "255.255.255.0",
+      "gateway": "172.16.0.1",
+      "settleMs": 1200,
+      "note": "The mirror route. Without it the request arrives and the reply can't get home."
+    },
+    {
+      "type": "highlight",
+      "objectiveId": "o3",
+      "settleMs": 1400,
+      "note": "Every objective is green — the lab now asks for the proving ping."
+    },
+    {
+      "type": "runPacket",
+      "src": "pcR",
+      "dstIp": "20.0.0.10",
+      "settleMs": 3200,
+      "note": "The lab's sign-off ping. Four hops across the canvas, then the win bar."
+    }
+  ]
+}

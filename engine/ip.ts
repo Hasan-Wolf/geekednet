@@ -117,3 +117,64 @@ export function addressRole(ip: string, mask: string): AddressRole | null {
 export function isHostAddress(ip: string, mask: string): boolean {
   return addressRole(ip, mask) === 'host';
 }
+
+/**
+ * Where the search for a free host address starts.
+ *
+ * `ifaceInNetwork` lets the student pick any host address, so anything deriving
+ * a solution has to pick one too — and .1 through .9 are where a reader expects
+ * routers and gateways, not a PC. Starting at .10 lands on the addresses the
+ * labs' own hints reach for ("say 192.168.1.10"), and the low addresses are
+ * still tried afterwards so a subnet too small to have a tenth address is not a
+ * dead end.
+ */
+const PREFERRED_FIRST_HOST = 10;
+
+/**
+ * Ceiling on how many addresses are examined in one subnet. A /8 has sixteen
+ * million and the answer is always in the first handful.
+ */
+const MAX_SCAN = 1024;
+
+/**
+ * First usable host address in `network`/`mask` that nothing in `taken` holds.
+ *
+ * "Usable" is {@link isHostAddress}'s definition — not the network address, not
+ * the broadcast address — so the address this picks is one an `ifaceInNetwork`
+ * objective will actually accept. Returns `undefined` if the subnet is full or
+ * either argument fails to parse, matching the rest of this module's "surface it
+ * as a failure, not an exception" contract: the caller leaves the interface
+ * alone rather than writing a malformed address.
+ *
+ * Shared ground for the two things that need to answer "what would a finished
+ * lab look like": the phone view's `solveLab`, which shows the end state, and
+ * {@link ../replayGenerator.ts}, which shows the path to it. Two copies of this
+ * preference order would mean a generated walkthrough handing out a different
+ * address than the solved view it is a walkthrough of.
+ */
+export function pickHostAddress(
+  network: string,
+  mask: string,
+  taken: ReadonlySet<string>,
+): string | undefined {
+  let base: number;
+  let size: number;
+  try {
+    base = (ipToInt(network) & ipToInt(mask)) >>> 0;
+    size = Math.min(2 ** (32 - maskToPrefix(mask)), MAX_SCAN);
+  } catch {
+    return undefined;
+  }
+  const preferred: number[] = [];
+  const low: number[] = [];
+  for (let offset = 0; offset < size; offset += 1) {
+    (offset >= PREFERRED_FIRST_HOST ? preferred : low).push(offset);
+  }
+  for (const offset of [...preferred, ...low]) {
+    const candidate = intToIp((base + offset) >>> 0);
+    if (!isHostAddress(candidate, mask)) continue;
+    if (taken.has(candidate)) continue;
+    return candidate;
+  }
+  return undefined;
+}
