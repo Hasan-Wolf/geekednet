@@ -8,9 +8,9 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { Line2 } from 'three/addons/lines/Line2.js';
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
-import { deviceLinkStatus, interfaceLinkStatus, type Device, type NetworkState } from '../engine/index.js';
+import { deviceLinkStatus, interfaceLinkStatus, type Device, type Link, type NetworkState } from '../engine/index.js';
 import { packetCableRoutes } from './cableRoute.js';
-import { disposeObject, makeHardware, textTexture } from './labModels.js';
+import { disposeObject, ethernetJackPosition, makeHardware, textTexture } from './labModels.js';
 import { useStore } from './store.js';
 import { LabCameraDirector, devicePosition } from './labCamera.js';
 import { createOperationsDisplay } from './labActivity.js';
@@ -130,24 +130,39 @@ function makeRoom(scene: T.Scene) {
   };
 }
 
-function plugPoint(d: Device, peer: Device) {
-  const p = world(d);
-  if (['pc', 'laptop', 'attacker'].includes(d.kind)) return p.add(new T.Vector3(0.72, 0.46, 0.52));
-  return p.add(new T.Vector3(T.MathUtils.clamp((world(peer).x - p.x) * 0.19, -0.7, 0.7), 0.48, 0.59));
+function plugPoint(device: Device, interfaceId: string) {
+  const index = device.interfaces.findIndex(iface => iface.id === interfaceId);
+  if (index < 0) return null;
+  const socket = ethernetJackPosition(device, index);
+  socket.z += 0.073; // cable exits the strain relief, outside the socket
+  return socket.add(world(device));
 }
 
-function cableCurve(a: Device, b: Device) {
-  const from = plugPoint(a, b); const to = plugPoint(b, a);
-  return new T.CatmullRomCurve3([from, from.clone().add(new T.Vector3(0, -0.1, 0.43)), new T.Vector3((from.x + to.x) / 2, 0.235, Math.max(from.z, to.z) + 0.85), to.clone().add(new T.Vector3(0, -0.1, 0.43)), to]);
+export function cableCurve(a: Device, b: Device, link: Link) {
+  const from = plugPoint(a, link.a.ifaceId);
+  const to = plugPoint(b, link.b.ifaceId);
+  if (!from || !to) return null;
+  return new T.CatmullRomCurve3([
+    from,
+    from.clone().add(new T.Vector3(0, -0.045, 0.26)),
+    new T.Vector3((from.x + to.x) / 2, 0.235, Math.max(from.z, to.z) + 0.85),
+    to.clone().add(new T.Vector3(0, -0.045, 0.26)),
+    to,
+  ]);
 }
 
-export function createLabScene(host: HTMLElement, labels: HTMLElement, onError: () => void): LabScene {
+export function createLabScene(
+  host: HTMLElement,
+  labels: HTMLElement,
+  onError: () => void,
+  onOpenConsole: (deviceId: string) => void,
+): LabScene {
   const renderer = new T.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.65));
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
   renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.23;
   renderer.outputColorSpace = T.SRGBColorSpace;
-  renderer.domElement.setAttribute('aria-label', 'Interactive 3D networking workbench. Drag empty space to rotate; scroll or pinch to zoom; click equipment to configure; click empty space to zoom out.');
+  renderer.domElement.setAttribute('aria-label', 'Interactive 3D networking workbench. Click a PC screen to open its console. Drag empty space to rotate, or click it to zoom out.');
   renderer.domElement.setAttribute('role', 'img');
   host.appendChild(renderer.domElement);
   const scene = new T.Scene(); scene.background = new T.Color(0x0c1421); scene.fog = new T.Fog(0x0c1421, 38, 90);
@@ -177,6 +192,7 @@ export function createLabScene(host: HTMLElement, labels: HTMLElement, onError: 
   const deviceRoot = new T.Group(); const cables = new T.Group(); const packetRoot = new T.Group();
   scene.add(deviceRoot, cables, packetRoot);
   const deviceMap = new Map<string, { group: T.Group; signature: string; label: HTMLButtonElement }>();
+  const liveCablePaths = new Map<string, { curve: T.CatmullRomCurve3; length: number }>();
   let disposed = false; let packetId = -1; let packetStart = 0; let packetFinished = false;
   const home = () => director.reset(useStore.getState().network.devices);
   const focus = (id: string) => director.focus(id, useStore.getState().network.devices);
@@ -192,11 +208,13 @@ export function createLabScene(host: HTMLElement, labels: HTMLElement, onError: 
       deviceRoot.remove(item.group); disposeObject(item.group); item.label.remove(); deviceMap.delete(id);
     }
     for (const d of net.devices) {
-      const signature = JSON.stringify([d.kind, d.label, d.powered, d.interfaces]);
+      const portHealth = d.interfaces.map(iface => interfaceLinkStatus(net, d.id, iface.id).health);
+      const signature = JSON.stringify([d.kind, d.label, d.powered, d.interfaces.length,
+        d.interfaces[0]?.name, d.interfaces.find(iface => iface.ip)?.ip, portHealth]);
       let item = deviceMap.get(d.id);
       if (!item || item.signature !== signature) {
         if (item) { deviceRoot.remove(item.group); disposeObject(item.group); }
-        const group = makeHardware(d); deviceRoot.add(group);
+        const group = makeHardware(d, portHealth); deviceRoot.add(group);
         const label = item?.label ?? document.createElement('button'); label.className = 'lab-device-label';
         label.dataset.kind = d.kind;
         label.setAttribute('aria-label', `Select ${d.label}`); label.dataset.deviceId = d.id;
@@ -218,24 +236,29 @@ export function createLabScene(host: HTMLElement, labels: HTMLElement, onError: 
       (outline.material as T.LineBasicMaterial).color.set(current.selectedDeviceId === d.id || current.connectSourceId === d.id ? 0x4df3ba : 0x2c7dae);
       (outline.material as T.LineBasicMaterial).opacity = current.selectedDeviceId === d.id ? 1 : 0.5;
     }
-    disposeObject(cables); cables.clear();
+    disposeObject(cables); cables.clear(); liveCablePaths.clear();
     for (const link of net.links) {
       const a = net.devices.find(d => d.id === link.a.deviceId); const b = net.devices.find(d => d.id === link.b.deviceId);
       if (!a || !b) continue;
-      const curve = cableCurve(a, b);
-      const active = interfaceLinkStatus(net, a.id, link.a.ifaceId).health === 'up';
-      const sheath = new T.Mesh(new T.TubeGeometry(curve, 56, 0.006, 7, false), material(active ? 0x229ac9 : 0x566374, 0.15, 0.4));
+      const curve = cableCurve(a, b, link);
+      if (!curve) continue;
+      const health = interfaceLinkStatus(net, a.id, link.a.ifaceId).health;
+      const sheathColor = health === 'up' ? 0x229ac9 : health === 'degraded' ? 0xa47b3d : 0x566374;
+      const sheath = new T.Mesh(new T.TubeGeometry(curve, 56, 0.006, 7, false), material(sheathColor, 0.15, 0.4));
       sheath.castShadow = true; sheath.receiveShadow = true; sheath.userData.linkId = link.id; cables.add(sheath);
       const hitArea = new T.Mesh(new T.TubeGeometry(curve, 32, 0.075, 5, false), new T.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false }));
       hitArea.userData.linkId = link.id; cables.add(hitArea);
-      if (active) {
-        const points = curve.getPoints(72).flatMap(p => [p.x, p.y + 0.009, p.z]);
+      if (health === 'up') {
+        liveCablePaths.set(link.id, { curve, length: curve.getLength() });
+        const points = curve.getPoints(72).flatMap(p => [p.x, p.y, p.z]);
         const core = new Line2(new LineGeometry().setPositions(points), new LineMaterial({ color: 0x58c9f2, linewidth: 1.5, worldUnits: false, alphaToCoverage: true }));
         core.userData.ignorePick = true; cables.add(core);
       }
       for (const point of [curve.getPoint(0), curve.getPoint(1)]) {
-        const plug = cube(cables, [0.09, 0.065, 0.14], [point.x, point.y, point.z - 0.02], material(0x65a6be, 0.4, 0.2));
-        plug.userData.linkId = link.id;
+        const connector = cube(cables, [0.146, 0.109, 0.073], [point.x, point.y, point.z - 0.069], material(0x88aeb9, 0.28, 0.24));
+        const boot = cube(cables, [0.102, 0.078, 0.052], [point.x, point.y, point.z - 0.023], material(sheathColor, 0.15, 0.72));
+        connector.userData.linkId = link.id;
+        boot.userData.linkId = link.id;
       }
     }
   }
@@ -258,9 +281,14 @@ export function createLabScene(host: HTMLElement, labels: HTMLElement, onError: 
     const hit = ray.intersectObjects([...deviceRoot.children, ...cables.children], true).find(hit => !hit.object.userData.ignorePick);
     let object: T.Object3D | null = hit?.object ?? null;
     while (object && !object.userData.deviceId && !object.userData.linkId) object = object.parent;
-    return object?.userData as { deviceId?: string; linkId?: string } | undefined;
+    if (!object) return undefined;
+    return {
+      deviceId: object.userData.deviceId as string | undefined,
+      linkId: object.userData.linkId as string | undefined,
+      screen: hit?.object.userData.monitorScreen === true,
+    };
   }
-  let drag: { id?: string; linkId?: string; x: number; y: number; offset: T.Vector3; moved: boolean; pointerId: number } | null = null;
+  let drag: { id?: string; linkId?: string; screen: boolean; x: number; y: number; offset: T.Vector3; moved: boolean; pointerId: number } | null = null;
   const benchClick = new BenchClick();
   let emptyClick = false;
   const down = (e: PointerEvent) => {
@@ -270,7 +298,7 @@ export function createLabScene(host: HTMLElement, labels: HTMLElement, onError: 
     if (!hit) { benchClick.begin(e.clientX, e.clientY, e.pointerId); director.cancel(); return; }
     const d = useStore.getState().network.devices.find(d => d.id === hit.deviceId);
     const point = floorPoint(e.clientX, e.clientY);
-    drag = { id: hit.deviceId, linkId: hit.linkId, x: e.clientX, y: e.clientY, offset: d && point ? point.sub(world(d)) : new T.Vector3(), moved: false, pointerId: e.pointerId };
+    drag = { id: hit.deviceId, linkId: hit.linkId, screen: hit.screen, x: e.clientX, y: e.clientY, offset: d && point ? point.sub(world(d)) : new T.Vector3(), moved: false, pointerId: e.pointerId };
     director.cancel();
     controls.enabled = false; e.stopImmediatePropagation(); renderer.domElement.setPointerCapture(e.pointerId);
   };
@@ -278,7 +306,7 @@ export function createLabScene(host: HTMLElement, labels: HTMLElement, onError: 
     benchClick.move(e.clientX, e.clientY);
     if (!drag) {
       const hit = pick(e.clientX, e.clientY);
-      renderer.domElement.style.cursor = hit?.deviceId ? 'grab' : hit?.linkId ? 'pointer' : 'grab';
+      renderer.domElement.style.cursor = hit?.screen || hit?.linkId ? 'pointer' : 'grab';
       return;
     }
     if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 5) drag.moved = true;
@@ -292,8 +320,11 @@ export function createLabScene(host: HTMLElement, labels: HTMLElement, onError: 
   const up = (e: PointerEvent) => {
     if (!drag) { benchClick.move(e.clientX, e.clientY); emptyClick = benchClick.finish(e.pointerId); return; }
     const state = useStore.getState();
-    if (!drag.moved) {
-      if (drag.id) select(drag.id);
+    if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) <= 5) {
+      if (drag.id) {
+        select(drag.id);
+        if (drag.screen && !state.connectMode) onOpenConsole(drag.id);
+      }
       else if (drag.linkId) state.removeLink(drag.linkId);
     }
     if (renderer.domElement.hasPointerCapture(drag.pointerId)) renderer.domElement.releasePointerCapture(drag.pointerId);
@@ -338,20 +369,24 @@ export function createLabScene(host: HTMLElement, labels: HTMLElement, onError: 
     packetVisuals.forEach(group => { group.visible = false; });
     const paths = packet ? packetCableRoutes(state.network, packet.path, packet.recipients) : state.ambientPath ? packetCableRoutes(state.network, state.ambientPath) : [];
     const runs = paths.map(path => {
-      const curves: T.CatmullRomCurve3[] = [];
+      const segments: { curve: T.CatmullRomCurve3; length: number; reverse: boolean }[] = [];
+      let total = 0;
       for (let i = 1; i < path.length; i++) {
-        const a = state.network.devices.find(d => d.id === path[i - 1]); const b = state.network.devices.find(d => d.id === path[i]);
-        const link = a && b ? state.network.links.find(l => (l.a.deviceId === a.id && l.b.deviceId === b.id) || (l.a.deviceId === b.id && l.b.deviceId === a.id)) : undefined;
-        if (!a || !b || !link || interfaceLinkStatus(state.network, link.a.deviceId, link.a.ifaceId).health !== 'up') { curves.length = 0; break; }
-        curves.push(cableCurve(a, b));
+        const from = path[i - 1];
+        const to = path[i];
+        const link = state.network.links.find(l => liveCablePaths.has(l.id) &&
+          ((l.a.deviceId === from && l.b.deviceId === to) || (l.a.deviceId === to && l.b.deviceId === from)));
+        const geometry = link && liveCablePaths.get(link.id);
+        if (!geometry || !link) return { segments: [], total: 0 };
+        segments.push({ ...geometry, reverse: link.a.deviceId !== from });
+        total += geometry.length;
       }
-      const lengths = curves.map(c => c.getLength()); const total = lengths.reduce((a, b) => a + b, 0);
-      return { curves, lengths, total };
+      return { segments, total };
     });
     const loop = !packet || (packetFinished && packet.success);
     const elapsed = loop ? now - idleStart : now - packetStart;
     const pulses = packetPulses(elapsed, Math.max(0, ...runs.map(run => run.total)), loop);
-    runs.forEach(({ curves, lengths, total }, runIndex) => {
+    runs.forEach(({ segments, total }, runIndex) => {
       if (total <= 0) return;
       for (const pulse of pulses) {
         if (pulse.distance > total) continue;
@@ -368,17 +403,18 @@ export function createLabScene(host: HTMLElement, labels: HTMLElement, onError: 
           const tailOffset = index * pixelWorld * 3.5;
           let distance = Math.max(0, pulse.distance - tailOffset);
           part.visible = index === 0 || pulse.distance >= tailOffset;
-          for (let c = 0; c < curves.length; c++) {
-            if (distance <= lengths[c] || c === curves.length - 1) {
-              const t = T.MathUtils.clamp(distance / lengths[c], 0, 1);
-              part.position.copy(curves[c].getPointAt(t));
+          for (let c = 0; c < segments.length; c++) {
+            const { curve, length, reverse } = segments[c];
+            if (distance <= length || c === segments.length - 1) {
+              const t = T.MathUtils.clamp(distance / length, 0, 1);
+              part.position.copy(curve.getPointAt(reverse ? 1 - t : t));
               if (index === 0) pixelWorld = 2 * camera.position.distanceTo(part.position) * Math.tan(camera.fov * Math.PI / 360) / Math.max(1, host.clientHeight);
               const scale = T.MathUtils.clamp(pixelWorld * PACKET_DIAMETER_PX / 0.048, 0.25, 16);
               if (index === 0) part.scale.setScalar(scale);
               else part.scale.setScalar((0.019 - (index - 1) * 0.0035) * scale);
               break;
             }
-            distance -= lengths[c];
+            distance -= length;
           }
         });
       }
@@ -388,7 +424,7 @@ export function createLabScene(host: HTMLElement, labels: HTMLElement, onError: 
       const device = state.network.devices.find(d => d.id === id); if (!device) continue;
       const p = world(device).add(new T.Vector3(0, 0.24, 1.8)); p.project(camera);
       const labelY = (-p.y * 0.5 + 0.5) * host.clientHeight;
-      item.label.style.transform = `translate(-50%, -50%) translate(${(p.x * 0.5 + 0.5) * host.clientWidth}px, ${state.selectedDeviceId === id ? Math.min(host.clientHeight - 100, labelY) : labelY}px)`;
+      item.label.style.transform = `translate(-50%, -50%) translate(${(p.x * 0.5 + 0.5) * host.clientWidth}px, ${state.selectedDeviceId === id ? Math.min(host.clientHeight - 116, labelY) : labelY}px)`;
       item.label.style.visibility = p.z > 1 || p.z < -1 ? 'hidden' : 'visible';
     }
     composer.render(); frame = requestAnimationFrame(animate);

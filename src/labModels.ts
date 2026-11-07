@@ -1,7 +1,7 @@
 import * as T from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import type { Device, DeviceKind } from '../engine/index.js';
+import type { Device, DeviceKind, LinkHealth } from '../engine/index.js';
 
 const metal = () => new T.MeshStandardMaterial({ color: 0x4b5b69, metalness: 0.78, roughness: 0.3 });
 const dark = () => new T.MeshStandardMaterial({ color: 0x172330, metalness: 0.6, roughness: 0.34 });
@@ -51,23 +51,56 @@ function screw(g: T.Group, x: number, y: number, z: number) {
   box(g, [0.029, 0.005, 0.004], [x, y, z + 0.008], rubber(), 0.001);
 }
 
-function port(g: T.Group, x: number, y: number, z: number, connected: boolean, powered: boolean) {
-  box(g, [0.224, 0.192, 0.075], [x, y, z], metal(), 0.008);
-  box(g, [0.172, 0.137, 0.08], [x, y, z + 0.012], rubber(), 0.004);
-  for (let i = 0; i < 8; i++) {
-    box(g, [0.009, 0.045, 0.015], [x - 0.059 + i * 0.017, y - 0.025, z + 0.055], new T.MeshStandardMaterial({ color: 0xb8a568, metalness: 0.8, roughness: 0.28 }), 0.001);
+export function hasWorkstationMonitor(kind: DeviceKind) {
+  return kind === 'pc' || kind === 'laptop' || kind === 'attacker';
+}
+
+/** The mouth of each real socket, in interface order and in model coordinates. */
+export function ethernetJackPosition(device: Device, index: number) {
+  return hasWorkstationMonitor(device.kind)
+    ? new T.Vector3(0.72, 0.46 + index * 0.24, 0.492)
+    : new T.Vector3((index - (device.interfaces.length - 1) / 2) * 0.28, 0.48, 0.553);
+}
+
+function port(g: T.Group, { x, y, z }: T.Vector3, health: LinkHealth) {
+  const rim = metal();
+  box(g, [0.229, 0.188, 0.034], [x, y, z - 0.046], rubber(), 0.004);
+  for (const offset of [-0.078, 0.078]) {
+    box(g, [0.224, 0.024, 0.042], [x, y + offset, z - 0.013], rim, 0.004);
   }
-  box(g, [0.032, 0.022, 0.012], [x - 0.073, y + 0.12, z + 0.042], connected && powered ? glow(0x43dd82) : rubber(), 0.003);
+  for (const offset of [-0.1, 0.1]) {
+    box(g, [0.024, 0.138, 0.042], [x + offset, y, z - 0.013], rim, 0.004);
+  }
+  box(g, [0.177, 0.141, 0.021], [x, y, z - 0.029], rubber(), 0.004);
+  const contact = new T.MeshStandardMaterial({ color: 0xb8a568, metalness: 0.8, roughness: 0.28 });
+  for (let i = 0; i < 8; i++) {
+    box(g, [0.009, 0.043, 0.009], [x - 0.059 + i * 0.017, y - 0.026, z - 0.014], contact, 0.001);
+  }
+  box(g, [0.063, 0.034, 0.017], [x - 0.062, y + 0.112, z - 0.016], rubber(), 0.004);
+  const lens = new T.MeshStandardMaterial({
+    color: health === 'up' ? 0x21724a : health === 'degraded' ? 0x885419 : 0x1b2425,
+    emissive: health === 'up' ? 0x28e786 : health === 'degraded' ? 0xffa633 : 0,
+    emissiveIntensity: 1.3,
+    roughness: 0.28,
+  });
+  box(g, [0.037, 0.019, 0.013], [x - 0.062, y + 0.112, z - 0.006], lens, 0.003);
 }
 
 function monitor(g: T.Group, d: Device) {
   const shell = dark();
   box(g, [1.27, 0.79, 0.09], [-0.22, 1.11, 0.09], shell);
   const screen = new T.Mesh(new T.PlaneGeometry(1.16, 0.66), new T.MeshBasicMaterial({
-    map: textTexture([`${d.label.toLowerCase()}@geekednet:~$`, d.powered ? 'Interface eth0: ready' : 'System offline', `IPv4 ${d.interfaces.find(i => i.ip)?.ip ?? 'not configured'}`, 'Awaiting network traffic...']),
-    color: d.powered ? 0xffffff : 0x131b22,
+    map: d.powered ? textTexture([
+      `${d.label.toLowerCase()}@geekednet:~$`,
+      `Interface ${d.interfaces[0]?.name ?? '—'}`,
+      `IPv4 ${d.interfaces.find(i => i.ip)?.ip ?? 'not configured'}`,
+      'Click the screen to open the console',
+    ]) : null,
+    color: d.powered ? 0xffffff : 0x070f17,
   }));
-  screen.position.set(-0.22, 1.12, 0.141); g.add(screen);
+  screen.position.set(-0.22, 1.12, 0.141);
+  screen.userData.monitorScreen = true;
+  g.add(screen);
   box(g, [1.05, 0.008, 0.009], [-0.22, 0.744, 0.141], d.powered ? glow(0x208dc8) : rubber(), 0.002);
   box(g, [0.075, 0.47, 0.075], [-0.22, 0.54, 0.035], metal());
   box(g, [0.49, 0.045, 0.32], [-0.22, 0.3, 0.1], shell);
@@ -81,33 +114,34 @@ function monitor(g: T.Group, d: Device) {
 }
 
 /** Real geometry, shared by the live lab and inventory product thumbnails. */
-export function makeHardware(d: Device): T.Group {
+export function makeHardware(d: Device, portHealth: readonly LinkHealth[] = []): T.Group {
   const g = new T.Group();
   const shell = dark(); const alloy = metal(); const black = rubber();
-  const pc = ['pc', 'laptop', 'attacker'].includes(d.kind);
+  const pc = hasWorkstationMonitor(d.kind);
   if (pc) {
     // A compact workstation on anti-vibration feet, with vents and glass side panel.
     monitor(g, d);
-    box(g, [0.43, 1.08, 0.82], [0.72, 0.81, -0.01], shell, 0.045);
-    box(g, [0.39, 1.01, 0.035], [0.72, 0.82, 0.42], alloy);
-    for (let i = 0; i < 12; i++) box(g, [0.23, 0.017, 0.013], [0.7, 0.43 + i * 0.044, 0.443], black, 0.002);
-    box(g, [0.018, 0.49, 0.016], [0.86, 0.9, 0.447], d.powered ? glow(0x31cada) : black, 0.005);
+    const towerHeight = Math.max(1.08, 0.34 + d.interfaces.length * 0.24);
+    box(g, [0.43, towerHeight, 0.82], [0.72, 0.27 + towerHeight / 2, -0.01], shell, 0.045);
+    box(g, [0.39, towerHeight - 0.07, 0.035], [0.72, 0.28 + towerHeight / 2, 0.42], alloy);
+    const ventStart = 0.63 + Math.max(0, d.interfaces.length - 1) * 0.24;
+    for (let y = ventStart; y < 0.27 + towerHeight - 0.12; y += 0.044) {
+      box(g, [0.23, 0.017, 0.013], [0.69, y, 0.443], black, 0.002);
+    }
+    box(g, [0.018, 0.49, 0.016], [0.88, 0.9, 0.447], d.powered ? glow(0x31cada) : black, 0.005);
     box(g, [0.012, 0.83, 0.68], [0.94, 0.84, -0.01], new T.MeshPhysicalMaterial({ color: 0x173447, metalness: 0.1, roughness: 0.14, transparent: true, opacity: 0.54, side: T.DoubleSide }));
     for (const y of [0.59, 1.04]) {
       const fan = new T.Mesh(new T.TorusGeometry(0.15, 0.014, 8, 32), d.powered ? glow(0x229e90) : black);
       fan.rotation.y = Math.PI / 2; fan.position.set(0.925, y, -0.02); g.add(fan);
     }
     for (const x of [0.55, 0.88]) for (const z of [-0.31, 0.31]) box(g, [0.08, 0.045, 0.08], [x, 0.255, z], black);
-    port(g, 0.72, 0.46, 0.455, d.interfaces.some(i => i.linkId), d.powered);
   } else {
     const isRouter = ['router', 'ap', 'cloud'].includes(d.kind);
     const isServer = d.kind === 'server';
-    const w = isServer ? 1.28 : 1.85;
+    const w = Math.max(isServer ? 1.28 : 1.85, d.interfaces.length * 0.28 + 0.18);
     const h = isServer ? 1.32 : 0.4;
     box(g, [w, h, 0.97], [0, 0.28 + h / 2, 0], shell, 0.045);
     box(g, [w - 0.05, 0.32, 0.025], [0, 0.5, 0.501], alloy);
-    const count = Math.min(6, Math.max(4, d.interfaces.length));
-    for (let i = 0; i < count; i++) port(g, -0.7 + i * 0.28, 0.48, 0.525, !!d.interfaces[i]?.linkId, d.powered);
     for (let row = 0; row < 4; row++) for (let col = 0; col < 9; col++) {
       box(g, [0.1, 0.006, 0.026], [-0.62 + col * 0.145, 0.285 + h, -0.26 + row * 0.085], black, 0.003);
     }
@@ -120,6 +154,7 @@ export function makeHardware(d: Device): T.Group {
     const label = new T.Mesh(new T.PlaneGeometry(0.8, 0.29), new T.MeshBasicMaterial({ map: textTexture(['NETWORK SYSTEMS'], `GEEKEDNET // ${d.kind.toUpperCase()}`) }));
     label.rotation.x = -Math.PI / 2; label.position.set(0, 0.291 + h, 0.19); g.add(label);
   }
+  d.interfaces.forEach((_, index) => port(g, ethernetJackPosition(d, index), portHealth[index] ?? 'down'));
   const platform = box(g, [pc ? 2 : 2.15, 0.055, 1.48], [pc ? 0.12 : 0, 0.215, 0.09], new T.MeshStandardMaterial({ color: 0x131e2b, metalness: 0.5, roughness: 0.6 }), 0.06);
   platform.name = 'platform';
   const trim = d.powered ? glow(0x1679ac) : black;
@@ -165,7 +200,9 @@ export function hardwareThumbnail(kind: DeviceKind): string {
   scene.add(new T.HemisphereLight(0xd5edff, 0x2c3454, 3));
   const light = new T.DirectionalLight(0xffffff, 4); light.position.set(2, 4, 5); scene.add(light);
   const camera = new T.PerspectiveCamera(34, 1.5, 0.1, 30); camera.position.set(2.6, 2.8, 4.6); camera.lookAt(0, 0.7, 0);
-  scene.add(makeHardware({ id: 'preview', kind, label: 'PC', powered: true, x: 0, y: 0, interfaces: [] }));
+  const portCount = kind === 'switch' ? 6 : hasWorkstationMonitor(kind) ? 1 : 4;
+  const interfaces = Array.from({ length: portCount }, (_, i) => ({ id: String(i), name: String(i + 1) }));
+  scene.add(makeHardware({ id: 'preview', kind, label: 'PC', powered: true, x: 0, y: 0, interfaces }));
   renderer.render(scene, camera);
   const data = renderer.domElement.toDataURL('image/png'); thumbnails.set(kind, data);
   disposeObject(scene); environment.dispose(); renderer.dispose(); renderer.forceContextLoss();

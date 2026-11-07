@@ -1290,8 +1290,11 @@ body.resizing-term * {
 .iface-name .link-state {
   color: var(--text-muted);
 }
-.iface-name .link-state.connected {
+.iface-name .link-state.connected, .iface-name .link-state.up {
   color: var(--status-up);
+}
+.iface-name .link-state.degraded {
+  color: var(--status-warn);
 }
 .section-label {
   font-family: var(--font-mono);

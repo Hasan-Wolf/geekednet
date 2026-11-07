@@ -3,9 +3,11 @@
  * routing table for routers, and a power toggle (grey → neon). Edits flow straight
  * into the working network via the store; objectives re-check on every keystroke.
  */
+import { useId } from 'react';
 import {
   hasDefaultGateway,
   hasRoutingTable,
+  interfaceLinkStatus,
   isAddressable,
   type Device,
 } from '../../engine/index.js';
@@ -43,8 +45,6 @@ export function ConfigPanel() {
 }
 
 function DeviceConfig({ device }: { device: Device }) {
-  const setIfaceField = useStore((s) => s.setIfaceField);
-  const setGateway = useStore((s) => s.setGateway);
   const setPower = useStore((s) => s.setPower);
   const addRoute = useStore((s) => s.addRoute);
   const updateRoute = useStore((s) => s.updateRoute);
@@ -54,7 +54,6 @@ function DeviceConfig({ device }: { device: Device }) {
   // Asked of the engine rather than listed here: replay validation rejects a
   // step that sets a field this panel would never have rendered, and the two
   // have to be reading the same rule. See engine/deviceConfig.ts.
-  const isHost = hasDefaultGateway(device.kind);
   const isRouter = hasRoutingTable(device.kind);
 
   return (
@@ -79,61 +78,7 @@ function DeviceConfig({ device }: { device: Device }) {
         Powered {device.powered ? 'on' : 'off'}
       </label>
 
-      <div className="section-label">Interfaces</div>
-      {device.interfaces.map((iface) => {
-        const connected = !!iface.linkId;
-        // A switch/hub just forwards frames — no L3 addressing to configure.
-        const addressable = isAddressable(device.kind);
-        return (
-          <div className="iface-block" key={iface.id}>
-            <div className="iface-name">
-              <span>{iface.name}</span>
-              <span className={`link-state${connected ? ' connected' : ''}`}>
-                {connected ? '● link up' : '○ unplugged'}
-              </span>
-            </div>
-            {addressable ? (
-              <div className="field-row">
-                <div className="field">
-                  <label>IP address</label>
-                  <input
-                    className={looksLikeIp(iface.ip) ? '' : 'invalid'}
-                    value={iface.ip ?? ''}
-                    placeholder="192.168.1.10"
-                    spellCheck={false}
-                    onChange={(e) => setIfaceField(device.id, iface.id, 'ip', e.target.value)}
-                  />
-                </div>
-                <div className="field">
-                  <label>Subnet mask</label>
-                  <input
-                    className={looksLikeIp(iface.mask) ? '' : 'invalid'}
-                    value={iface.mask ?? ''}
-                    placeholder="255.255.255.0"
-                    spellCheck={false}
-                    onChange={(e) => setIfaceField(device.id, iface.id, 'mask', e.target.value)}
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="cfg-empty">Layer-2 port — no IP needed.</div>
-            )}
-          </div>
-        );
-      })}
-
-      {isHost && (
-        <div className="field">
-          <label>Default gateway</label>
-          <input
-            className={looksLikeIp(device.gateway) ? '' : 'invalid'}
-            value={device.gateway ?? ''}
-            placeholder="192.168.1.1"
-            spellCheck={false}
-            onChange={(e) => setGateway(device.id, e.target.value)}
-          />
-        </div>
-      )}
+      <DeviceAddressing device={device} />
 
       {isRouter && (
         <>
@@ -169,5 +114,78 @@ function DeviceConfig({ device }: { device: Device }) {
         </>
       )}
     </section>
+  );
+}
+
+/** The side panel and the workstation screen edit the same live fields. */
+export function DeviceAddressing({ device }: { device: Device }) {
+  const formId = useId();
+  const network = useStore(s => s.network);
+  const setIfaceField = useStore(s => s.setIfaceField);
+  const setGateway = useStore(s => s.setGateway);
+  const addressable = isAddressable(device.kind);
+
+  return (
+    <>
+      <div className="section-label">Interfaces</div>
+      {device.interfaces.map((iface, index) => {
+        const { health, reason } = interfaceLinkStatus(network, device.id, iface.id);
+        const id = `${formId}-${index}`;
+        const state = health === 'up' ? '● link up' : health === 'degraded'
+          ? '◐ link issue' : iface.linkId ? '○ link down' : '○ unplugged';
+        return (
+          <div className="iface-block" key={iface.id}>
+            <div className="iface-name">
+              <span>{iface.name}</span>
+              <span className={`link-state ${health}`} title={reason}>{state}</span>
+            </div>
+            {addressable ? (
+              <div className="field-row">
+                <div className="field">
+                  <label htmlFor={`${id}-ip`}>IP address</label>
+                  <input
+                    id={`${id}-ip`}
+                    aria-invalid={!looksLikeIp(iface.ip)}
+                    className={looksLikeIp(iface.ip) ? '' : 'invalid'}
+                    value={iface.ip ?? ''}
+                    placeholder="192.168.1.10"
+                    spellCheck={false}
+                    onChange={e => setIfaceField(device.id, iface.id, 'ip', e.target.value)}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor={`${id}-mask`}>Subnet mask</label>
+                  <input
+                    id={`${id}-mask`}
+                    aria-invalid={!looksLikeIp(iface.mask)}
+                    className={looksLikeIp(iface.mask) ? '' : 'invalid'}
+                    value={iface.mask ?? ''}
+                    placeholder="255.255.255.0"
+                    spellCheck={false}
+                    onChange={e => setIfaceField(device.id, iface.id, 'mask', e.target.value)}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="cfg-empty">Layer-2 port — no IP needed.</div>
+            )}
+          </div>
+        );
+      })}
+      {hasDefaultGateway(device.kind) && (
+        <div className="field">
+          <label htmlFor={`${formId}-gateway`}>Default gateway</label>
+          <input
+            id={`${formId}-gateway`}
+            aria-invalid={!looksLikeIp(device.gateway)}
+            className={looksLikeIp(device.gateway) ? '' : 'invalid'}
+            value={device.gateway ?? ''}
+            placeholder="192.168.1.1"
+            spellCheck={false}
+            onChange={e => setGateway(device.id, e.target.value)}
+          />
+        </div>
+      )}
+    </>
   );
 }

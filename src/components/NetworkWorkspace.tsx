@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { PALETTE } from '../devices.js';
 import { createLabScene, type LabScene } from '../labScene.js';
+import { hasWorkstationMonitor } from '../labModels.js';
 import { useStore } from '../store.js';
 import { Canvas } from './Canvas.js';
 import { CompanionBot } from './CompanionBot.js';
+import { MonitorConsole } from './MonitorConsole.js';
 import { TopologyControls } from './Topology.js';
 import { WinBar } from './WinBar.js';
 import { deviceLinkStatus } from '../../engine/index.js';
@@ -35,6 +37,7 @@ function LabCanvas({ onFallback }: { onFallback: () => void }) {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(false);
   const [dropActive, setDropActive] = useState(false);
+  const [consoleId, setConsoleId] = useState<string | null>(null);
   const net = useStore(s => s.network);
   const selected = useStore(s => s.selectedDeviceId);
   const connectMode = useStore(s => s.connectMode);
@@ -53,16 +56,20 @@ function LabCanvas({ onFallback }: { onFallback: () => void }) {
 
   useEffect(() => {
     try {
-      scene.current = createLabScene(host.current!, labels.current!, () => setError(true));
+      scene.current = createLabScene(host.current!, labels.current!, () => setError(true), setConsoleId);
       setReady(true);
     } catch (err) { console.warn('3D lab could not start:', err); setError(true); }
     return () => { scene.current?.dispose(); scene.current = null; };
   }, []);
 
   useEffect(() => {
+    if (consoleId && consoleId !== selected) setConsoleId(null);
+  }, [consoleId, selected]);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
-      if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(el.tagName) || el.isContentEditable) return;
+      if (e.defaultPrevented || el.closest?.('.lab-monitor') || ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(el.tagName) || el.isContentEditable) return;
       const state = useStore.getState();
       if (e.key === 'Escape' && state.connectMode) state.toggleConnectMode();
       if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedDeviceId) { e.preventDefault(); state.removeDevice(state.selectedDeviceId); }
@@ -71,7 +78,11 @@ function LabCanvas({ onFallback }: { onFallback: () => void }) {
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const pc = net.devices.find(d => d.id === selected && ['pc', 'laptop', 'attacker'].includes(d.kind)) ?? net.devices.find(d => ['pc', 'laptop'].includes(d.kind));
+  const selectedDevice = net.devices.find(d => d.id === selected);
+  const monitorDevice = selectedDevice && selectedDevice.id === consoleId && hasWorkstationMonitor(selectedDevice.kind)
+    ? selectedDevice : null;
+  const pc = selectedDevice && hasWorkstationMonitor(selectedDevice.kind)
+    ? selectedDevice : net.devices.find(d => d.kind === 'pc' || d.kind === 'laptop');
   const destination = net.devices.find(d => d.id !== pc?.id && ['pc', 'laptop', 'server'].includes(d.kind) && d.interfaces.some(i => i.ip));
   function runPing() {
     if (!pc || !destination) return;
@@ -97,7 +108,7 @@ function LabCanvas({ onFallback }: { onFallback: () => void }) {
     <div ref={labels} className="lab-labels" />
     <div className="lab-toolbar">
       <button className={`lab-tool${connectMode ? ' active' : ''}`} aria-pressed={connectMode} onClick={toggleConnect}>⌁ {connectMode ? 'Cancel wiring' : 'Connect cables'}</button>
-      <span className="lab-toolbar-hint">{connectMode ? connectSource ? 'Now select the second device' : 'Select the first device to connect' : 'Drag empty space to rotate · scroll or pinch to zoom'}</span>
+      <span className="lab-toolbar-hint">{connectMode ? connectSource ? 'Now select the second device' : 'Select the first device to connect' : 'Click a PC screen to open its console · drag to rotate'}</span>
       <span className="lab-live"><i />LIVE LAB</span>
     </div>
     <nav className="lab-device-nav" aria-label="Lab devices">
@@ -125,7 +136,12 @@ function LabCanvas({ onFallback }: { onFallback: () => void }) {
     {!ready && !error && <div className="lab-loading">Preparing your workbench…</div>}
     {error && <div className="lab-loading"><h2>3D view is unavailable in this browser.</h2><p>You can keep building in the network map.</p><button className="lab-run" onClick={onFallback}>Open 2D Map</button></div>}
     {lastDeleted && <div className="lab-undo" role="status"><span>{lastDeleted.label} removed</span><button onClick={() => useStore.getState().undoDelete()}>Undo</button><button aria-label="Dismiss undo" onClick={() => useStore.getState().dismissUndo()}>×</button></div>}
-    {selected && <div className="lab-selected-tools"><span>{net.devices.find(d => d.id === selected)?.label} selected</span><button onClick={() => useStore.getState().removeDevice(selected)}>Remove device</button></div>}
+    {selectedDevice && <div className="lab-selected-tools">
+      <span>{selectedDevice.label} selected</span>
+      {!connectMode && hasWorkstationMonitor(selectedDevice.kind) && <button className="lab-open-console" onClick={() => setConsoleId(selectedDevice.id)}>Open console</button>}
+      <button onClick={() => useStore.getState().removeDevice(selectedDevice.id)}>Remove device</button>
+    </div>}
+    {!error && monitorDevice && <MonitorConsole key={monitorDevice.id} device={monitorDevice} onClose={() => setConsoleId(null)} />}
     {result && <button className={`lab-result ${result.success ? 'ok' : 'fail'}`} onClick={() => useStore.getState().dismissResult()}>{result.success ? `✓ ${result.broadcast ? 'Broadcast delivered' : `Reply from ${result.target ?? 'host'} — packet delivered`}` : `✕ ${result.reason ?? 'Unreachable'}`}<span>×</span></button>}
     {net.devices.length === 0 && <div className="lab-empty"><h2>Your bench. Your network.</h2><p>Drag a PC, switch, or router onto the surface to begin.</p></div>}
     <CompanionBot />

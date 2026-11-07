@@ -7,8 +7,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { getDevice } from '../../engine/index.js';
 import { useStore } from '../store.js';
 
-export function Terminal() {
-  const log = useStore((s) => s.terminalLog);
+export function Terminal({ deviceId }: { deviceId?: string } = {}) {
+  const terminalLog = useStore((s) => s.terminalLog);
   const runTerminal = useStore((s) => s.runTerminal);
   const clearTerminal = useStore((s) => s.clearTerminal);
   const net = useStore((s) => s.network);
@@ -20,11 +20,14 @@ export function Terminal() {
   const bodyRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Shell identity: the selected device if any, else the store's default.
-  const shellId = selectedId ?? terminalDeviceId;
+  const shellId = deviceId ?? selectedId ?? terminalDeviceId;
   const shellDev = shellId ? getDevice(net, shellId) : undefined;
   const prompt = shellDev ? `${shellDev.label.toLowerCase()}@geekednet:~$` : 'guest@geekednet:~$';
 
+  const log = useMemo(
+    () => deviceId ? terminalLog.filter(line => line.deviceId === deviceId) : terminalLog,
+    [deviceId, terminalLog],
+  );
   const typed = useMemo(
     () => log.filter((l) => l.cls === 'prompt').map((l) => l.text),
     [log],
@@ -38,8 +41,8 @@ export function Terminal() {
     const value = input;
     if (value.trim() === '') return;
     // If a device is selected, run its shell; otherwise the store default is used.
-    if (selectedId) useStore.setState({ terminalDeviceId: selectedId });
-    runTerminal(value);
+    if (!deviceId && selectedId) useStore.setState({ terminalDeviceId: selectedId });
+    runTerminal(value, deviceId);
     setInput('');
     setHistIdx(null);
   }
@@ -77,11 +80,12 @@ export function Terminal() {
         </div>
         <span className="term-title">Terminal · {shellDev?.label ?? 'no device'}</span>
         <div className="spacer" />
-        <button className="btn" style={{ padding: '4px 9px', fontSize: 11 }} onClick={clearTerminal}>
+        <button className="btn" style={{ padding: '4px 9px', fontSize: 11 }} onClick={() => clearTerminal(deviceId)}>
           clear
         </button>
       </div>
-      <div className="term-body" ref={bodyRef} onClick={() => inputRef.current?.focus()}>
+      <div className="term-body" ref={bodyRef} aria-live={deviceId ? 'polite' : undefined} onClick={() => inputRef.current?.focus()}>
+        {deviceId && log.length === 0 && <div className="term-line muted">Type help to see the available commands.</div>}
         {log.map((line, i) => (
           <div key={i} className={`term-line ${line.cls ?? 'plain'}`}>
             {line.text}
@@ -93,9 +97,12 @@ export function Terminal() {
         <input
           ref={inputRef}
           className="term-input"
+          aria-label={`Command for ${shellDev?.label ?? 'terminal'}`}
+          data-monitor-command={deviceId ? '' : undefined}
           value={input}
           spellCheck={false}
           autoComplete="off"
+          autoCapitalize="off"
           placeholder="ping <ip>"
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}

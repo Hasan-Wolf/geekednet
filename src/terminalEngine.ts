@@ -10,6 +10,7 @@
 import {
   deviceIp,
   getDevice,
+  interfaceLinkStatus,
   maskToPrefix,
   ping,
   simulatePacket,
@@ -58,9 +59,11 @@ function ipAddr(state: NetworkState, deviceId: string): TermLine[] {
   if (!dev) return [{ text: 'no such device', cls: 'err' }];
   const lines: TermLine[] = [];
   dev.interfaces.forEach((iface, idx) => {
-    const up = iface.linkId ? 'UP' : 'DOWN';
+    const link = interfaceLinkStatus(state, dev.id, iface.id);
+    const flags = !dev.powered ? 'DOWN' : link.health === 'up' ? 'UP,LOWER_UP' : 'NO-CARRIER,UP';
+    const note = !dev.powered ? ' (powered off)' : link.health === 'degraded' ? ` (${link.reason})` : '';
     lines.push({
-      text: `${idx + 1}: ${iface.name}: <${up}> ${dev.powered ? '' : '(powered off) '}`.trimEnd(),
+      text: `${idx + 1}: ${iface.name}: <${flags}>${note}`,
       cls: 'plain',
     });
     if (iface.ip && iface.mask) {

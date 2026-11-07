@@ -165,7 +165,7 @@ interface AppState {
 
   // terminal
   terminalDeviceId: string | null;
-  terminalLog: TermLine[];
+  terminalLog: (TermLine & { deviceId?: string })[];
   commandHistory: string[];
 
   // animation / last result
@@ -261,8 +261,8 @@ interface AppState {
   clickDeviceForConnect: (id: string) => void;
   removeLink: (linkId: string) => void;
 
-  runTerminal: (raw: string) => void;
-  clearTerminal: () => void;
+  runTerminal: (raw: string, sourceDeviceId?: string) => void;
+  clearTerminal: (deviceId?: string) => void;
   animatePath: (result: SimResult, target?: string, verify?: boolean) => void;
   /** The canvas reporting that a packet finished its run. */
   packetArrived: (packetId: number) => void;
@@ -823,14 +823,14 @@ export const useStore = create<AppState>((set, get) => {
       });
     },
 
-    runTerminal: (raw) => {
+    runTerminal: (raw, sourceDeviceId) => {
       const s = get();
-      const deviceId = s.terminalDeviceId ?? defaultTerminalDevice(s.network);
+      const deviceId = sourceDeviceId ?? s.terminalDeviceId ?? defaultTerminalDevice(s.network);
       const lab = activeLab(s.labs, s.activeLabId);
       const dev = deviceId ? getDevice(s.network, deviceId) : undefined;
       const promptLabel = dev ? `${dev.label.toLowerCase()}@geekednet:~$` : 'guest@geekednet:~$';
 
-      if (!deviceId) {
+      if (!deviceId || !dev) {
         set({
           terminalLog: [
             ...s.terminalLog,
@@ -845,7 +845,7 @@ export const useStore = create<AppState>((set, get) => {
       // outputs of whichever mission the student last had open.
       const result = runCommand(s.network, deviceId, raw, s.topologyMode ? undefined : lab);
       if (result.clear) {
-        set({ terminalLog: [] });
+        get().clearTerminal(sourceDeviceId);
         return;
       }
 
@@ -855,7 +855,7 @@ export const useStore = create<AppState>((set, get) => {
         : s.commandHistory;
 
       set({
-        terminalLog: [...s.terminalLog, ...echoed],
+        terminalLog: [...s.terminalLog, ...echoed.map(line => ({ ...line, deviceId }))],
         commandHistory,
       });
 
@@ -886,7 +886,9 @@ export const useStore = create<AppState>((set, get) => {
       if (result.sim) get().animatePath(result.sim, target, verifying);
     },
 
-    clearTerminal: () => set({ terminalLog: [] }),
+    clearTerminal: (deviceId) => set(s => ({
+      terminalLog: deviceId ? s.terminalLog.filter(line => line.deviceId !== deviceId) : [],
+    })),
 
     animatePath: (result, target, verify = false) => {
       packetSeq += 1;
